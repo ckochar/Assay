@@ -341,8 +341,9 @@ export default function Assay() {
         ⚠ Synthetic documents only. This prototype must not receive real personal or financial information. Uploads are processed ephemerally and not persisted.
       </div>
       <div style={{ background: C.white, border: `1px solid ${C.line}`, borderRadius: 10, padding: 18, display: "grid", gap: 14 }}>
-        <label style={{ display: "grid", gap: 5, fontSize: 12, color: C.sub }}>Case ID *
-          <input value={newForm.caseId} onChange={e => setNewForm({ ...newForm, caseId: e.target.value })} placeholder="BL-20499" style={{ ...mono, padding: "9px 12px", border: `1px solid ${C.line}`, borderRadius: 7, fontSize: 13 }} />
+        <label style={{ display: "grid", gap: 5, fontSize: 12, color: C.sub }}>Case ID
+          <input value={newForm.caseId} onChange={e => setNewForm({ ...newForm, caseId: e.target.value })} placeholder="Auto-generated if left blank — e.g. BL-20499" style={{ ...mono, padding: "9px 12px", border: `1px solid ${C.line}`, borderRadius: 7, fontSize: 13 }} />
+          <span style={{ fontSize: 11, color: C.sub }}>In production this arrives from the loan-origination system; entering one manually is only for this demo.</span>
         </label>
         <label style={{ display: "grid", gap: 5, fontSize: 12, color: C.sub }}>Package display name
           <input value={newForm.name} onChange={e => setNewForm({ ...newForm, name: e.target.value })} placeholder="Synthetic Business LLC" style={{ padding: "9px 12px", border: `1px solid ${C.line}`, borderRadius: 7, fontSize: 13 }} />
@@ -362,7 +363,7 @@ export default function Assay() {
           I confirm these files contain no real personal or financial information.
         </label>
         <div style={{ display: "flex", gap: 10 }}>
-          <Btn onClick={createReview} disabled={!newForm.caseId || !newForm.ack}>Analyze package</Btn>
+          <Btn onClick={createReview} disabled={!newForm.ack}>Analyze package</Btn>
           <Btn kind="ghost" onClick={() => setScreen("dashboard")}>Cancel</Btn>
         </div>
       </div>
@@ -607,12 +608,12 @@ export default function Assay() {
     <div style={{ minHeight: "100vh", background: C.paper, color: C.ink, fontFamily: "system-ui, -apple-system, sans-serif" }}>
       <style>{FONTS}</style>
       <Nav />
-      {screen === "dashboard" && <Dashboard />}
-      {screen === "new" && <NewReview />}
-      {screen === "processing" && <Processing />}
-      {screen === "results" && <Results />}
-      {screen === "audit" && <Audit />}
-      <Modal />
+      {screen === "dashboard" && Dashboard()}
+      {screen === "new" && NewReview()}
+      {screen === "processing" && Processing()}
+      {screen === "results" && Results()}
+      {screen === "audit" && Audit()}
+      {Modal()}
       <div style={{ textAlign: "center", padding: "18px 0 26px", ...mono, fontSize: 10, color: C.sub }}>
         Assay · Phase 1 interactive shell · deterministic demo outputs · not legal or compliance advice
       </div>
