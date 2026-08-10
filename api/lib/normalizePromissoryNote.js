@@ -14,6 +14,18 @@ function allText(result) {
   return result?.analyzeResult?.content || result?.analyzeResult?.pages?.flatMap((page) => page.lines || []).map((line) => line.content).join("\n") || "";
 }
 
+function pageGeometry(page) {
+  return {
+    width: Number.isFinite(page?.width) ? page.width : null,
+    height: Number.isFinite(page?.height) ? page.height : null,
+    unit: page?.unit || null,
+  };
+}
+
+function fallbackEvidence(page = 1, excerpt = "Evidence not found") {
+  return { page, excerpt, polygon: null, pageGeometry: { width: null, height: null, unit: null } };
+}
+
 function lineEvidence(result, matcher) {
   for (const page of result?.analyzeResult?.pages || []) {
     const line = (page.lines || []).find((candidate) => matcher.test(candidate.content));
@@ -22,6 +34,7 @@ function lineEvidence(result, matcher) {
         page: page.pageNumber,
         excerpt: line.content,
         polygon: line.polygon || null,
+        pageGeometry: pageGeometry(page),
       };
     }
   }
@@ -97,7 +110,7 @@ function extractExecutionDate(text) {
 
 function detectSignatureIndicators(result, borrowers) {
   const secondPage = pageText(result, 2);
-  const indicators = borrowers.map((borrower) => {
+  return borrowers.map((borrower) => {
     const escaped = borrower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const occurrences = [...secondPage.matchAll(new RegExp(escaped, "gi"))].length;
     return {
@@ -106,7 +119,6 @@ function detectSignatureIndicators(result, borrowers) {
       evidence: lineEvidence(result, new RegExp(`^${escaped}$`, "i")) || lineEvidence(result, new RegExp(escaped, "i")),
     };
   });
-  return indicators;
 }
 
 export function normalizePromissoryNoteAnalysis(result) {
@@ -127,7 +139,7 @@ export function normalizePromissoryNoteAnalysis(result) {
       fundingCritical: true,
       extractedValue: classification.documentType,
       confidence: { classification: classification.confidence, extraction: null, ocrQuality: ocrQuality.label, evidenceComplete: classification.matchedSignals >= 2 },
-      evidence: lineEvidence(result, /PROMISSORY NOTE/i) || { page: 1, excerpt: "Document-title evidence not found", polygon: null },
+      evidence: lineEvidence(result, /PROMISSORY NOTE/i) || fallbackEvidence(1, "Document-title evidence not found"),
     },
     {
       id: "BORROWER-001",
@@ -136,7 +148,7 @@ export function normalizePromissoryNoteAnalysis(result) {
       fundingCritical: true,
       extractedValue: borrowers.length ? borrowers.join("; ") : "Not extracted",
       confidence: { classification: classification.confidence, extraction: borrowers.length ? 0.9 : 0.35, ocrQuality: ocrQuality.label, evidenceComplete: borrowers.length > 0 },
-      evidence: lineEvidence(result, /FOR VALUE RECEIVED/i) || lineEvidence(result, /Borrower\s*:/i) || { page: 1, excerpt: "Borrower evidence not found", polygon: null },
+      evidence: lineEvidence(result, /FOR VALUE RECEIVED/i) || lineEvidence(result, /Borrower\s*:/i) || fallbackEvidence(1, "Borrower evidence not found"),
     },
     {
       id: "DATE-001",
@@ -145,7 +157,7 @@ export function normalizePromissoryNoteAnalysis(result) {
       fundingCritical: true,
       extractedValue: executionDate || "Not extracted",
       confidence: { classification: classification.confidence, extraction: executionDate ? 0.92 : 0.35, ocrQuality: ocrQuality.label, evidenceComplete: Boolean(executionDate) },
-      evidence: lineEvidence(result, /Execution Date\s*:/i) || lineEvidence(result, /^Date\s*:/i) || { page: 1, excerpt: "Execution-date evidence not found", polygon: null },
+      evidence: lineEvidence(result, /Execution Date\s*:/i) || lineEvidence(result, /^Date\s*:/i) || fallbackEvidence(1, "Execution-date evidence not found"),
     },
     {
       id: "SIG-IND-001",
@@ -154,7 +166,7 @@ export function normalizePromissoryNoteAnalysis(result) {
       fundingCritical: true,
       extractedValue: signatures.length ? signatures.map((item) => `${item.borrower}: ${item.indicatorDetected ? "indicator detected" : "not detected"}`).join("; ") : "No borrower names available for comparison",
       confidence: { classification: classification.confidence, extraction: signatures.length ? 0.68 : 0.2, ocrQuality: ocrQuality.label, evidenceComplete: false, reviewTrigger: "OCR text cannot establish legal signature validity" },
-      evidence: signatures.find((item) => item.evidence)?.evidence || { page: 2, excerpt: "Signature indicator evidence not found", polygon: null },
+      evidence: signatures.find((item) => item.evidence)?.evidence || fallbackEvidence(2, "Signature indicator evidence not found"),
     },
   ];
 
