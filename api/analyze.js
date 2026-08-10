@@ -1,6 +1,5 @@
 import { isAzureConfigured, startDocumentAnalysis } from "./lib/azureDocumentIntelligence.js";
-
-const MAX_FILE_BYTES = 4 * 1024 * 1024;
+import { checkRateLimit, getClientIp, validatePdfPayload } from "./lib/requestGuards.js";
 
 function send(response, status, payload) {
   response.status(status).json(payload);
@@ -23,20 +22,24 @@ export default async function handler(request, response) {
     });
   }
 
-  const { base64Source, fileName, mimeType, size } = request.body || {};
-  if (!base64Source || typeof base64Source !== "string") {
-    return send(response, 400, { error: "A base64-encoded PDF is required" });
-  }
-  if (mimeType !== "application/pdf") {
-    return send(response, 400, { error: "Only PDF files are supported in the first live workflow" });
-  }
-  if (!Number.isFinite(size) || size <= 0 || size > MAX_FILE_BYTES) {
-    return send(response, 400, { error: "PDF must be between 1 byte and 4 MB" });
+  const { base64Source, fileName, mimeType } = request.body || {};
+  const validation = validatePdfPayload({ base64Source, mimeType });
+  if (!validation.ok) {
+    return send(response, validation.status, { error: validation.error });
   }
 
-  const header = Buffer.from(base64Source.slice(0, 12), "base64").toString("ascii");
-  if (!header.startsWith("%PDF")) {
-    return send(response, 400, { error: "The uploaded file does not appear to be a valid PDF" });
+  const clientIp = getClientIp(request);
+  const rateLimit = checkRateLimit({ key: `analyze:${clientIp}` });
+  response.setHeader("X-RateLimit-Limit", "5");
+  response.setHeader("X-RateLimit-Remaining", String(rateLimit.remaining));
+  response.setHeader("X-RateLimit-Reset", String(Math.ceil(rateLimit.resetAt / 1000)));
+
+  if (!rateLimit.allowed) {
+    response.setHeader("Retry-After", String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))));
+    return send(response, 429, {
+      error: "Live analysis limit reached. Please try again after the current hourly window resets.",
+      code: "RATE_LIMITED",
+    });
   }
 
   try {
@@ -45,10 +48,12 @@ export default async function handler(request, response) {
       analysisId: operation.resultId,
       status: "running",
       fileName,
+      decodedBytes: validation.decodedBytes,
       provider: "Azure AI Document Intelligence",
       modelId: operation.modelId,
       apiVersion: operation.apiVersion,
       pageScope: "1-2",
+      rateLimitRemaining: rateLimit.remaining,
     });
   } catch (error) {
     console.error("Document analysis start failed", error);
