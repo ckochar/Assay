@@ -1,7 +1,8 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
-import LiveAnalysis from "./LiveAnalysis.jsx";
+
+const LiveAnalysis = lazy(() => import("./LiveAnalysis.jsx"));
 
 function Root() {
   const isLive = window.location.pathname === "/live";
@@ -29,7 +30,11 @@ function Root() {
           Try live PDF analysis
         </a>
       )}
-      {isLive ? <LiveAnalysis /> : <App />}
+      {isLive ? (
+        <Suspense fallback={<div style={{ padding: 40, fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}>Loading live document workspace…</div>}>
+          <LiveAnalysis />
+        </Suspense>
+      ) : <App />}
     </>
   );
 }
