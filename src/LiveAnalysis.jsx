@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { PDFDocument, StandardFonts } from "pdf-lib";
+import React, { useMemo, useState } from "react";
+import PdfEvidenceViewer from "./PdfEvidenceViewer.jsx";
 
 const C = {
   bg: "#f5f7f6", panel: "#ffffff", ink: "#14211d", sub: "#60706a", line: "#dfe6e2",
@@ -21,7 +21,7 @@ function Pill({ children, status }) {
 }
 
 function Button({ children, onClick, disabled, secondary = false }) {
-  return <button onClick={onClick} disabled={disabled} style={{ ...display, border: secondary ? `1px solid ${C.line}` : 0, background: disabled ? "#e8ecea" : secondary ? C.panel : C.teal, color: disabled ? "#84918c" : secondary ? C.ink : "white", borderRadius: 8, padding: "10px 14px", fontWeight: 750, cursor: disabled ? "not-allowed" : "pointer" }}>{children}</button>;
+  return <button type="button" onClick={onClick} disabled={disabled} style={{ ...display, border: secondary ? `1px solid ${C.line}` : 0, background: disabled ? "#e8ecea" : secondary ? C.panel : C.teal, color: disabled ? "#84918c" : secondary ? C.ink : "white", borderRadius: 8, padding: "10px 14px", fontWeight: 750, cursor: disabled ? "not-allowed" : "pointer" }}>{children}</button>;
 }
 
 function fileToBase64(file) {
@@ -34,6 +34,7 @@ function fileToBase64(file) {
 }
 
 async function makeSyntheticNote() {
+  const { PDFDocument, StandardFonts } = await import("pdf-lib");
   const pdf = await PDFDocument.create();
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -86,11 +87,30 @@ export default function LiveAnalysis() {
   const [error, setError] = useState("");
   const [meta, setMeta] = useState(null);
   const [result, setResult] = useState(null);
+  const [activeRuleId, setActiveRuleId] = useState(null);
+
+  const activeRule = useMemo(
+    () => result?.rules?.find((rule) => rule.id === activeRuleId) || result?.rules?.[0] || null,
+    [result, activeRuleId],
+  );
+
+  const resetAnalysis = (nextFile) => {
+    setFile(nextFile);
+    setResult(null);
+    setMeta(null);
+    setActiveRuleId(null);
+    setError("");
+    setPhase("idle");
+  };
 
   const chooseSample = async () => {
-    setFile(await makeSyntheticNote());
-    setResult(null);
-    setError("");
+    setPhase("preparing");
+    try {
+      resetAnalysis(await makeSyntheticNote());
+    } catch (sampleError) {
+      setError(sampleError.message || "Unable to create sample PDF");
+      setPhase("error");
+    }
   };
 
   const analyze = async () => {
@@ -98,14 +118,16 @@ export default function LiveAnalysis() {
     setPhase("uploading");
     setError("");
     setResult(null);
+    setActiveRuleId(null);
     try {
-      if (file.type !== "application/pdf") throw new Error("Only PDF files are supported");
+      const looksLikePdf = file.type === "application/pdf" || file.name?.toLowerCase().endsWith(".pdf");
+      if (!looksLikePdf) throw new Error("Only PDF files are supported");
       if (file.size > 4 * 1024 * 1024) throw new Error("PDF must be 4 MB or smaller");
       const base64Source = await fileToBase64(file);
       const startResponse = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ base64Source, fileName: file.name, mimeType: file.type, size: file.size }),
+        body: JSON.stringify({ base64Source, fileName: file.name, mimeType: "application/pdf", size: file.size }),
       });
       const start = await startResponse.json();
       if (!startResponse.ok) throw new Error(start.error || "Unable to start analysis");
@@ -119,6 +141,7 @@ export default function LiveAnalysis() {
         if (response.status === 202) continue;
         if (!response.ok) throw new Error(payload.error || "Analysis failed");
         setResult(payload.result);
+        setActiveRuleId(payload.result?.rules?.[0]?.id || null);
         setPhase("complete");
         return;
       }
@@ -130,37 +153,54 @@ export default function LiveAnalysis() {
   };
 
   return <main style={{ minHeight: "100vh", background: C.bg, color: C.ink, ...display, padding: 24 }}>
-    <div style={{ maxWidth: 1080, margin: "0 auto" }}>
+    <div style={{ maxWidth: 1480, margin: "0 auto" }}>
       <a href="/" style={{ ...mono, color: C.teal, textDecoration: "none", fontSize: 11 }}>← return to portfolio demo</a>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "end", gap: 14, flexWrap: "wrap", margin: "16px 0" }}>
-        <div><h1 style={{ margin: 0, fontSize: 26 }}>Live Promissory Note analysis</h1><p style={{ color: C.sub, marginBottom: 0 }}>PDF → Azure OCR/layout → normalized fields → deterministic QC controls.</p></div>
+        <div><h1 style={{ margin: 0, fontSize: 26 }}>Live Promissory Note analysis</h1><p style={{ color: C.sub, marginBottom: 0 }}>PDF → Azure OCR/layout → normalized fields → deterministic QC controls → source evidence.</p></div>
         <Pill status="Needs Review">BETA · 2-PAGE SCOPE</Pill>
       </div>
 
       <section style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 18 }}>
         <div style={{ background: C.blueSoft, color: C.blue, borderRadius: 8, padding: 11, fontSize: 12, marginBottom: 14 }}><b>Use synthetic documents only.</b> Uploaded PDFs are sent directly to Azure Document Intelligence for analysis and are not persisted by Assay. The first workflow reads pages 1–2 only.</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 12, alignItems: "center" }}>
           <label style={{ border: `1.5px dashed ${C.line}`, borderRadius: 9, padding: 18, cursor: "pointer" }}>
-            <input type="file" accept="application/pdf" style={{ display: "none" }} onChange={(event) => { setFile(event.target.files?.[0] || null); setResult(null); setError(""); }} />
+            <input type="file" accept="application/pdf,.pdf" style={{ display: "none" }} onChange={(event) => resetAnalysis(event.target.files?.[0] || null)} />
             <b>{file ? file.name : "Choose a synthetic Promissory Note PDF"}</b><br /><span style={{ color: C.sub, fontSize: 11 }}>{file ? `${(file.size / 1024).toFixed(1)} KB` : "PDF · up to 4 MB · first two pages analyzed"}</span>
           </label>
-          <div style={{ display: "grid", gap: 8 }}><Button onClick={chooseSample} secondary>Create sample PDF</Button><Button onClick={analyze} disabled={!file || phase === "uploading" || phase === "analyzing"}>{phase === "uploading" ? "Uploading…" : phase === "analyzing" ? "Analyzing…" : "Analyze document"}</Button></div>
+          <div style={{ display: "grid", gap: 8 }}><Button onClick={chooseSample} secondary disabled={phase === "preparing"}>{phase === "preparing" ? "Creating…" : "Create sample PDF"}</Button><Button onClick={analyze} disabled={!file || ["uploading", "analyzing", "preparing"].includes(phase)}>{phase === "uploading" ? "Uploading…" : phase === "analyzing" ? "Analyzing…" : "Analyze document"}</Button></div>
         </div>
         {meta && <div style={{ ...mono, color: C.sub, fontSize: 10, marginTop: 10 }}>Provider: {meta.provider} · model {meta.modelId} · API {meta.apiVersion} · pages {meta.pageScope}</div>}
         {error && <div style={{ background: C.failSoft, color: C.fail, borderRadius: 8, padding: 11, fontSize: 12, marginTop: 12 }}><b>Analysis unavailable:</b> {error}{error.includes("not configured") && <><br />Add the two Azure environment variables to the Vercel Preview deployment, then redeploy.</>}</div>}
       </section>
 
       {result && <>
-        <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10, margin: "16px 0" }}>
+        <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10, margin: "16px 0" }}>
           {[["Document type", result.document.type], ["Loan number", result.document.loanNumber || "Not found"], ["Borrowers", result.document.borrowers.join("; ") || "Not found"], ["Execution date", result.document.executionDate || "Not found"], ["Pages analyzed", result.document.pageCount], ["OCR quality", result.document.ocrQuality.label]].map(([label, value]) => <div key={label} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 13 }}><div style={{ ...mono, color: C.sub, fontSize: 9 }}>{label.toUpperCase()}</div><div style={{ fontWeight: 800, marginTop: 5, fontSize: 13 }}>{value}</div></div>)}
         </section>
-        <section style={{ display: "grid", gap: 10 }}>
-          {result.rules.map((rule) => <article key={rule.id} style={{ background: C.panel, border: `1px solid ${tone(rule.status).color}55`, borderLeft: `4px solid ${tone(rule.status).color}`, borderRadius: 10, padding: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}><div><span style={{ ...mono, fontSize: 10, color: C.sub }}>{rule.id}</span> · <b>{rule.name}</b></div><Pill status={rule.status}>{rule.status}</Pill></div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}><div style={{ background: C.bg, padding: 10, borderRadius: 8, fontSize: 11 }}><span style={{ color: C.sub }}>Extracted result</span><br /><b>{rule.extractedValue}</b></div><div style={{ background: C.bg, padding: 10, borderRadius: 8, fontSize: 11 }}><span style={{ color: C.sub }}>Evidence</span><br /><b>Page {rule.evidence.page}</b> · {rule.evidence.excerpt}</div></div>
-            <div style={{ ...mono, color: C.sub, fontSize: 10, marginTop: 9 }}>Classification {rule.confidence.classification?.toFixed(2) || "—"} · Extraction {rule.confidence.extraction?.toFixed(2) || "—"} · OCR {rule.confidence.ocrQuality} · Evidence {rule.confidence.evidenceComplete ? "complete" : "incomplete"}</div>
-            {rule.confidence.reviewTrigger && <div style={{ color: C.review, fontSize: 11, marginTop: 7 }}>Human review trigger: {rule.confidence.reviewTrigger}</div>}
-          </article>)}
+
+        <section style={{ display: "grid", gridTemplateColumns: "minmax(440px,1.15fr) minmax(390px,.85fr)", gap: 14, alignItems: "start" }}>
+          <div style={{ position: "sticky", top: 12 }}>
+            <PdfEvidenceViewer file={file} evidence={activeRule?.evidence} />
+          </div>
+
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", marginBottom: 8 }}>
+              <div><b>QC findings</b><div style={{ color: C.sub, fontSize: 11 }}>Select a finding to inspect its source evidence.</div></div>
+              <span style={{ ...mono, color: C.sub, fontSize: 10 }}>{result.rules.length} controls</span>
+            </div>
+            <section style={{ display: "grid", gap: 10 }}>
+              {result.rules.map((rule) => {
+                const selected = activeRule?.id === rule.id;
+                return <article key={rule.id} style={{ background: C.panel, border: `1px solid ${selected ? tone(rule.status).color : `${tone(rule.status).color}55`}`, borderLeft: `4px solid ${tone(rule.status).color}`, boxShadow: selected ? `0 0 0 2px ${tone(rule.status).color}18` : "none", borderRadius: 10, padding: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}><div><span style={{ ...mono, fontSize: 10, color: C.sub }}>{rule.id}</span> · <b>{rule.name}</b></div><Pill status={rule.status}>{rule.status}</Pill></div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}><div style={{ background: C.bg, padding: 10, borderRadius: 8, fontSize: 11 }}><span style={{ color: C.sub }}>Extracted result</span><br /><b>{rule.extractedValue}</b></div><div style={{ background: C.bg, padding: 10, borderRadius: 8, fontSize: 11 }}><span style={{ color: C.sub }}>Evidence</span><br /><b>Page {rule.evidence.page}</b> · {rule.evidence.excerpt}</div></div>
+                  <div style={{ ...mono, color: C.sub, fontSize: 10, marginTop: 9 }}>Classification {rule.confidence.classification?.toFixed(2) || "—"} · Extraction {rule.confidence.extraction?.toFixed(2) || "—"} · OCR {rule.confidence.ocrQuality} · Evidence {rule.confidence.evidenceComplete ? "complete" : "incomplete"}</div>
+                  {rule.confidence.reviewTrigger && <div style={{ color: C.review, fontSize: 11, marginTop: 7 }}>Human review trigger: {rule.confidence.reviewTrigger}</div>}
+                  <button type="button" onClick={() => setActiveRuleId(rule.id)} style={{ marginTop: 10, border: `1px solid ${C.line}`, background: selected ? C.tealSoft : C.panel, color: C.teal, borderRadius: 7, padding: "7px 10px", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>{selected ? "Evidence selected" : `View evidence on page ${rule.evidence.page}`}</button>
+                </article>;
+              })}
+            </section>
+          </div>
         </section>
       </>}
     </div>
