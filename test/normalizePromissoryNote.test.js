@@ -22,6 +22,9 @@ const mockResult = {
     pages: [
       {
         pageNumber: 1,
+        width: 8.5,
+        height: 11,
+        unit: "inch",
         lines: [
           { content: "PROMISSORY NOTE", polygon: [1, 1, 2, 1, 2, 2, 1, 2] },
           { content: "Loan No.: LN-900001" },
@@ -32,9 +35,12 @@ const mockResult = {
       },
       {
         pageNumber: 2,
+        width: 8.5,
+        height: 11,
+        unit: "inch",
         lines: [
           { content: "BORROWER EXECUTION" },
-          { content: "Execution Date: August 9, 2026" },
+          { content: "Execution Date: August 9, 2026", polygon: [{ x: 0.75, y: 1.45 }, { x: 3.4, y: 1.45 }, { x: 3.4, y: 1.65 }, { x: 0.75, y: 1.65 }] },
           { content: "Borrower: Maya Patel" },
           { content: "Maya Patel" },
           { content: "Borrower: Rohan Patel" },
@@ -52,6 +58,16 @@ test("normalizes classification, loan number, borrowers and execution date", () 
   assert.equal(result.document.loanNumber, "LN-900001");
   assert.deepEqual(result.document.borrowers, ["Maya Patel", "Rohan Patel"]);
   assert.equal(result.document.executionDate, "2026-08-09");
+});
+
+test("preserves Azure page geometry with evidence polygons", () => {
+  const result = normalizePromissoryNoteAnalysis(mockResult);
+  const dateRule = result.rules.find((rule) => rule.id === "DATE-001");
+  assert.equal(dateRule.evidence.page, 2);
+  assert.equal(dateRule.evidence.pageGeometry.width, 8.5);
+  assert.equal(dateRule.evidence.pageGeometry.height, 11);
+  assert.equal(dateRule.evidence.pageGeometry.unit, "inch");
+  assert.equal(dateRule.evidence.polygon.length, 4);
 });
 
 test("routes signature indicators to human review rather than claiming validation", () => {
