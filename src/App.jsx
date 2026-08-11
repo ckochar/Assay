@@ -6,23 +6,23 @@ import {
   computeRecommendation,
   validateOverride,
 } from "./domain/mortgageQc.js";
-import { DEMO_REVIEWS, PROFILE_REGISTRY, SAMPLE_OPTIONS } from "./data/mortgageDemo.js";
+import { DEMO_REVIEWS, PROFILE_REGISTRY } from "./data/mortgageDemo.js";
 
 const C = {
   bg: "#f5f7f6", panel: "#ffffff", ink: "#14211d", sub: "#60706a", line: "#dfe6e2",
   teal: "#0d6259", tealSoft: "#e4f0ee", pass: "#177245", passSoft: "#e8f4ed",
   fail: "#ad312b", failSoft: "#fae9e7", review: "#93620a", reviewSoft: "#f8efd9",
   blue: "#215f87", blueSoft: "#e8f1f7", purple: "#534aa2", purpleSoft: "#eeecf8",
+  muted: "#eef2f0",
 };
 const mono = { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" };
 const display = { fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" };
-
 const channelLabel = { RON: "RON", MOBILE_NOTARY: "Mobile notary", QC_ONLY: "QC only" };
 
 function statusStyle(status) {
-  if (status === "Pass" || status === RECOMMENDATION.READY) return { color: C.pass, bg: C.passSoft, icon: "✓" };
-  if (status === "Fail" || status === RECOMMENDATION.EXCEPTION) return { color: C.fail, bg: C.failSoft, icon: "×" };
-  if (status === "Needs Review" || status === RECOMMENDATION.REVIEW) return { color: C.review, bg: C.reviewSoft, icon: "!" };
+  if (["Pass", RECOMMENDATION.READY, "Ready for Funding", "Completed"].includes(status)) return { color: C.pass, bg: C.passSoft, icon: "✓" };
+  if (["Fail", RECOMMENDATION.EXCEPTION].includes(status)) return { color: C.fail, bg: C.failSoft, icon: "×" };
+  if (["Needs Review", RECOMMENDATION.REVIEW, "Awaiting Correction"].includes(status)) return { color: C.review, bg: C.reviewSoft, icon: "!" };
   return { color: C.sub, bg: C.bg, icon: "•" };
 }
 
@@ -67,58 +67,93 @@ function AppHeader({ screen, setScreen }) {
   </header>;
 }
 
+function packageLifecycle(review) {
+  if (review.workflow === "Completed" && review.disposition) {
+    return { label: review.disposition, helper: "Review completed", tone: statusStyle(review.disposition), open: false };
+  }
+  if (review.workflow === "Awaiting Correction") {
+    return { label: "Awaiting Correction", helper: "Waiting for resubmission", tone: statusStyle("Awaiting Correction"), open: true };
+  }
+  const recommendation = computeRecommendation(review.rules);
+  return {
+    label: recommendation,
+    helper: recommendation === RECOMMENDATION.READY ? "Verify and confirm" : recommendation === RECOMMENDATION.REVIEW ? "Human judgment required" : "Corrective action required",
+    tone: statusStyle(recommendation),
+    open: true,
+  };
+}
+
+function PackageRow({ review, openReview, compact = false }) {
+  const lifecycle = packageLifecycle(review);
+  const pass = review.rules.filter((r) => r.status === "Pass").length;
+  const fail = review.rules.filter((r) => r.status === "Fail" && !r.authorizedException).length;
+  const needs = review.rules.filter((r) => r.status === "Needs Review" && !r.authorizedException).length;
+  const pages = review.documents.reduce((sum, doc) => sum + doc.pages, 0);
+  return <div onClick={() => openReview(review.id)} style={{ display: "grid", gridTemplateColumns: compact ? "88px minmax(220px,1.7fr) 130px 170px" : "88px minmax(220px,1.5fr) 105px 110px 185px 155px", gap: 10, alignItems: "center", padding: "13px 15px", borderBottom: `1px solid ${C.line}`, cursor: "pointer", fontSize: 12 }}>
+    <span style={mono}>{review.id}</span>
+    <span><b>{review.borrower}</b><br /><span style={{ color: C.sub }}>{review.loanId} · {pages} pages · {review.documents.length} docs</span></span>
+    {!compact && <span>{channelLabel[review.channel]}</span>}
+    {!compact && <span style={mono}>{review.jurisdiction} v{review.profile.version}</span>}
+    <span><Pill tone={lifecycle.tone}>{lifecycle.tone.icon} {lifecycle.label}</Pill><br /><span style={{ color: C.sub, fontSize: 10 }}>{lifecycle.helper}</span></span>
+    <span style={{ color: C.sub, fontSize: 10 }}>{pass} Pass · {fail} Fail · {needs} Review<br />{review.workflow}</span>
+  </div>;
+}
+
 function HowAssayWorks() {
   const steps = [
     ["1", "Intake", "Receive an executed package through RON, Mobile Notary, QC Only, or upload."],
     ["2", "Understand", "OCR and AI classify documents, extract fields, and preserve source evidence."],
-    ["3", "Apply Policy", "Assay resolves the applicable profile and evaluates deterministic QC controls."],
+    ["3", "Apply Rules", "Assay selects the applicable rule profile and evaluates deterministic QC controls."],
     ["4", "Review", "Analysts inspect exceptions or uncertain evidence directly against the source."],
     ["5", "Dispose", "Confirm, override, return for correction, escalate, or record an authorized exception."],
   ];
-  return <section style={{ marginTop: 20 }}>
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "end", marginBottom: 8 }}><div><h2 style={{ ...display, margin: 0, fontSize: 16 }}>How Assay works</h2><div style={{ color: C.sub, fontSize: 11, marginTop: 4 }}>Intake → Understand → Apply Policy → Review → Dispose</div></div></div>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(150px,1fr))", gap: 8, overflowX: "auto" }}>
-      {steps.map(([n, title, body]) => <div key={n} style={{ minWidth: 150, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12 }}><Pill tone={{ color: C.teal, bg: C.tealSoft }}>{n}</Pill><div style={{ fontWeight: 800, marginTop: 8, fontSize: 12 }}>{title}</div><div style={{ color: C.sub, fontSize: 10.5, lineHeight: 1.45, marginTop: 5 }}>{body}</div></div>)}
+  return <section style={{ marginTop: 22, background: C.muted, border: `1px solid ${C.line}`, borderRadius: 12, padding: 14 }}>
+    <div style={{ marginBottom: 10 }}><div style={{ ...mono, color: C.sub, fontSize: 9 }}>QUICK ORIENTATION</div><h2 style={{ ...display, margin: "3px 0 0", fontSize: 15 }}>How Assay works</h2><div style={{ color: C.sub, fontSize: 10.5, marginTop: 3 }}>A lightweight overview for first-time users.</div></div>
+    <div style={{ display: "flex", alignItems: "stretch", gap: 6, overflowX: "auto" }}>
+      {steps.map(([n, title, body], index) => <React.Fragment key={n}>
+        <div style={{ minWidth: 155, flex: 1, background: "#ffffffaa", border: `1px solid ${C.line}`, borderRadius: 9, padding: 11 }}><Pill tone={{ color: C.teal, bg: C.tealSoft }}>{n}</Pill><div style={{ fontWeight: 800, marginTop: 7, fontSize: 11.5 }}>{title}</div><div style={{ color: C.sub, fontSize: 10, lineHeight: 1.45, marginTop: 4 }}>{body}</div></div>
+        {index < steps.length - 1 && <div aria-hidden="true" style={{ alignSelf: "center", color: "#9aa7a1", fontSize: 18, flex: "0 0 auto" }}>→</div>}
+      </React.Fragment>)}
     </div>
   </section>;
 }
 
 function Dashboard({ reviews, openReview }) {
-  const recommendations = reviews.map((review) => computeRecommendation(review.rules));
+  const openReviews = reviews.filter((review) => packageLifecycle(review).open);
+  const completedReviews = reviews.filter((review) => !packageLifecycle(review).open);
+  const recommendations = openReviews.map((review) => computeRecommendation(review.rules));
   const kpis = [
-    ["Packages", reviews.length],
+    ["Open Reviews", openReviews.length],
     ["Ready for Review", recommendations.filter((item) => item === RECOMMENDATION.READY).length],
     ["Needs Review", recommendations.filter((item) => item === RECOMMENDATION.REVIEW).length],
     ["Exceptions", recommendations.filter((item) => item === RECOMMENDATION.EXCEPTION).length],
+    ["Completed", completedReviews.length],
   ];
   return <main style={{ padding: 24, maxWidth: 1220, margin: "0 auto" }}>
     <div><h1 style={{ ...display, margin: 0, fontSize: 25 }}>QC Dashboard</h1><p style={{ color: C.sub, margin: "6px 0 0", fontSize: 13 }}>Overview of package QC status across RON, mobile-notary, and QC-only intake.</p></div>
-    <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10, margin: "20px 0" }}>
+    <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 10, margin: "20px 0" }}>
       {kpis.map(([label, value]) => <div key={label} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14 }}><div style={{ ...mono, color: C.sub, fontSize: 10, textTransform: "uppercase" }}>{label}</div><div style={{ ...display, fontSize: 22, fontWeight: 800, marginTop: 5 }}>{value}</div></div>)}
     </section>
 
     <section style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 11, overflow: "hidden" }}>
-      <div style={{ padding: "13px 15px", borderBottom: `1px solid ${C.line}` }}><div style={{ fontWeight: 800 }}>Package Review Queue</div><div style={{ color: C.sub, fontSize: 10.5, marginTop: 3 }}>Package status answers one question: what does the analyst need to do next?</div></div>
-      {reviews.map((review) => {
-        const rec = computeRecommendation(review.rules);
-        const tone = statusStyle(rec);
-        const pass = review.rules.filter((r) => r.status === "Pass").length;
-        const fail = review.rules.filter((r) => r.status === "Fail").length;
-        const needs = review.rules.filter((r) => r.status === "Needs Review").length;
-        return <div key={review.id} onClick={() => openReview(review.id)} style={{ display: "grid", gridTemplateColumns: "88px minmax(220px,1.5fr) 110px 118px 178px 150px", gap: 10, alignItems: "center", padding: "13px 15px", borderBottom: `1px solid ${C.line}`, cursor: "pointer", fontSize: 12 }}>
-          <span style={mono}>{review.id}</span><span><b>{review.borrower}</b><br /><span style={{ color: C.sub }}>{review.loanId} · {review.property}</span></span><span>{channelLabel[review.channel]}</span><span style={mono}>{review.jurisdiction} v{review.profile.version}</span><span><Pill tone={tone}>{tone.icon} {rec}</Pill><br /><span style={{ color: C.sub, fontSize: 10 }}>{rec === RECOMMENDATION.READY ? "Verify and confirm" : rec === RECOMMENDATION.REVIEW ? "Human judgment required" : "Corrective action required"}</span></span><span style={{ color: C.sub, fontSize: 10 }}>{pass} Pass · {fail} Fail · {needs} Review<br />{review.workflow}</span>
-        </div>;
-      })}
+      <div style={{ padding: "13px 15px", borderBottom: `1px solid ${C.line}` }}><div style={{ fontWeight: 800 }}>Package Review Queue</div><div style={{ color: C.sub, fontSize: 10.5, marginTop: 3 }}>Open packages are prioritized by what the analyst needs to do next.</div></div>
+      {openReviews.length ? openReviews.map((review) => <PackageRow key={review.id} review={review} openReview={openReview} />) : <div style={{ padding: 18, color: C.sub, fontSize: 12 }}>No open packages. Completed reviews appear below.</div>}
     </section>
 
-    <section style={{ marginTop: 20 }}>
-      <h2 style={{ ...display, margin: 0, fontSize: 16 }}>Explore sample workflow</h2><p style={{ color: C.sub, fontSize: 11, marginTop: 4 }}>See how Assay handles three common QC outcomes.</p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(220px,1fr))", gap: 10, overflowX: "auto" }}>
-        {SAMPLE_OPTIONS.map((sample) => <div key={sample.id} style={{ minWidth: 220, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14 }}><b style={{ fontSize: 12 }}>{sample.label}</b><p style={{ color: C.sub, fontSize: 10.5, lineHeight: 1.45 }}>{sample.description}</p><Button secondary onClick={() => openReview(sample.id)}>Open sample</Button></div>)}
-      </div>
-    </section>
+    {completedReviews.length > 0 && <section style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 11, overflow: "hidden", marginTop: 14 }}>
+      <div style={{ padding: "12px 15px", borderBottom: `1px solid ${C.line}` }}><div style={{ fontWeight: 800 }}>Recently Completed</div><div style={{ color: C.sub, fontSize: 10.5, marginTop: 3 }}>Final human dispositions; no further analyst action is required.</div></div>
+      {completedReviews.map((review) => <PackageRow key={review.id} review={review} openReview={openReview} compact />)}
+    </section>}
+
     <HowAssayWorks />
   </main>;
+}
+
+function TechnicalDetails({ active }) {
+  return <details style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12 }}>
+    <summary style={{ cursor: "pointer", fontWeight: 750, fontSize: 11.5 }}>Technical details</summary>
+    <div style={{ marginTop: 8 }}>{[["Profile", `${active.profile.id} v${active.profile.version}`], ["Profile effective", active.profile.effectiveAt], ["Document hash", active.evaluationContext.documentHash], ["Extractor", `${active.evaluationContext.extractorProvider} ${active.evaluationContext.extractorVersion}`], ["Processing mode", active.processing.mode]].map(([k, v]) => <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "6px 0", borderBottom: `1px solid ${C.line}`, fontSize: 10.5 }}><span style={{ color: C.sub }}>{k}</span><span style={{ ...mono, textAlign: "right" }}>{v}</span></div>)}</div>
+  </details>;
 }
 
 function ReviewScreen({ active, filter, setFilter, onBack, onOpenFinding, onReady, onReturn }) {
@@ -127,21 +162,33 @@ function ReviewScreen({ active, filter, setFilter, onBack, onOpenFinding, onRead
   const tone = statusStyle(recommendation);
   const shown = active.rules.filter((rule) => filter === "All" || rule.status === filter);
   const isAwaitingCorrection = active.workflow === "Awaiting Correction";
-  const actionText = recommendation === RECOMMENDATION.READY ? "No blockers found · review evidence and confirm the package." : recommendation === RECOMMENDATION.REVIEW ? `${active.rules.filter((r) => r.status === "Needs Review").length} uncertain finding requires human judgment.` : `${active.rules.filter((r) => r.status === "Fail").length} blocker requires corrective action.`;
+  const isCompleted = active.workflow === "Completed" && Boolean(active.disposition);
+  const totalPages = active.documents.reduce((sum, doc) => sum + doc.pages, 0);
+  const unresolvedFails = active.rules.filter((r) => r.status === "Fail" && !r.authorizedException).length;
+  const unresolvedReview = active.rules.filter((r) => r.status === "Needs Review" && !r.authorizedException).length;
+  const actionText = recommendation === RECOMMENDATION.READY ? "No blockers found · review evidence and confirm the package." : recommendation === RECOMMENDATION.REVIEW ? `${unresolvedReview} uncertain finding requires human judgment.` : `${unresolvedFails} blocker requires corrective action.`;
 
   return <main style={{ padding: 20, maxWidth: 1280, margin: "0 auto" }}>
     <button type="button" onClick={onBack} style={{ ...mono, background: "none", border: 0, color: C.sub, cursor: "pointer" }}>← QC Dashboard</button>
     <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "start", flexWrap: "wrap", margin: "12px 0" }}>
-      <div><h1 style={{ ...display, margin: 0, fontSize: 22 }}>{active.borrower}</h1><div style={{ color: C.sub, fontSize: 12, marginTop: 5 }}>{active.loanId} · {active.property} · {channelLabel[active.channel]}</div></div>
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}><div><div style={{ ...mono, color: C.sub, fontSize: 9 }}>SYSTEM RECOMMENDATION</div><Pill tone={tone}>{tone.icon} {recommendation}</Pill></div><div><div style={{ ...mono, color: C.sub, fontSize: 9 }}>WORKFLOW</div><Pill>{active.workflow}</Pill></div><div><div style={{ ...mono, color: C.sub, fontSize: 9 }}>FINAL DISPOSITION</div><Pill>{active.disposition || "Not recorded"}</Pill></div></div>
+      <div><h1 style={{ ...display, margin: 0, fontSize: 22 }}>{active.borrower}</h1><div style={{ color: C.sub, fontSize: 12, marginTop: 5 }}>{active.loanId} · {channelLabel[active.channel]} · {active.jurisdiction} · {active.documents.length} documents · {totalPages} pages · QC profile v{active.profile.version}</div></div>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}><div><div style={{ ...mono, color: C.sub, fontSize: 9 }}>SYSTEM RECOMMENDATION</div><Pill tone={tone}>{tone.icon} {recommendation}</Pill></div><div><div style={{ ...mono, color: C.sub, fontSize: 9 }}>WORKFLOW</div><Pill tone={statusStyle(active.workflow)}>{active.workflow}</Pill></div><div><div style={{ ...mono, color: C.sub, fontSize: 9 }}>FINAL DISPOSITION</div><Pill tone={active.disposition ? statusStyle(active.disposition) : undefined}>{active.disposition || "Not recorded"}</Pill></div></div>
     </div>
-    <div style={{ background: isAwaitingCorrection ? C.reviewSoft : tone.bg, color: isAwaitingCorrection ? C.review : tone.color, borderRadius: 9, padding: 11, fontSize: 12, marginBottom: 14 }}><b>{isAwaitingCorrection ? "Package returned · awaiting corrected documents." : actionText}</b>{isAwaitingCorrection && <div style={{ marginTop: 4 }}>The current evaluation is retained in audit history. Final disposition is blocked until a corrected package is received and re-analyzed.</div>}</div>
+
+    <div style={{ background: isCompleted ? C.passSoft : isAwaitingCorrection ? C.reviewSoft : tone.bg, color: isCompleted ? C.pass : isAwaitingCorrection ? C.review : tone.color, borderRadius: 9, padding: 11, fontSize: 12, marginBottom: 14 }}>
+      <b>{isCompleted ? `Review completed · ${active.disposition}. No further action is required.` : isAwaitingCorrection ? "Package returned · awaiting corrected documents." : actionText}</b>
+      {isAwaitingCorrection && <div style={{ marginTop: 4 }}>The current evaluation is retained in audit history. Final disposition is blocked until a corrected package is received and re-analyzed.</div>}
+      {isCompleted && <div style={{ marginTop: 4 }}>The system recommendation and analyst actions remain visible below for traceability.</div>}
+    </div>
 
     <section style={{ display: "grid", gridTemplateColumns: "minmax(260px,.8fr) minmax(500px,1.7fr)", gap: 14 }}>
       <aside style={{ display: "grid", gap: 12, alignContent: "start" }}>
-        <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14 }}><div style={{ fontWeight: 750, marginBottom: 10 }}>Evaluation context</div>{[["Profile", `${active.profile.id} v${active.profile.version}`], ["Effective", active.profile.effectiveAt], ["Document hash", active.evaluationContext.documentHash], ["Extractor", `${active.evaluationContext.extractorProvider} ${active.evaluationContext.extractorVersion}`], ["Mode", active.processing.mode]].map(([k,v]) => <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "6px 0", borderBottom: `1px solid ${C.line}`, fontSize: 11 }}><span style={{ color: C.sub }}>{k}</span><span style={{ ...mono, textAlign: "right" }}>{v}</span></div>)}</div>
-        <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14 }}><div style={{ fontWeight: 750, marginBottom: 8 }}>Package documents</div>{active.documents.map((doc) => <div key={doc.name} style={{ padding: "7px 0", borderBottom: `1px solid ${C.line}`, fontSize: 11 }}><b>{doc.name}</b><br /><span style={{ color: C.sub }}>{doc.pages} pages · {doc.status}</span></div>)}</div>
-        <div style={{ background: C.blueSoft, border: `1px solid ${C.blue}33`, borderRadius: 10, padding: 14 }}><b style={{ color: C.blue }}>Demo Workspace</b><p style={{ fontSize: 11, lineHeight: 1.5, color: C.blue, marginBottom: 0 }}>This case uses preloaded sample package data so you can explore the full review workflow without making live AI calls. Switch to Live Analysis to process a sample PDF through Azure.</p></div>
+        <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14 }}>
+          <div style={{ fontWeight: 750 }}>Package documents</div><div style={{ color: C.sub, fontSize: 10.5, margin: "3px 0 8px" }}>{active.documents.length} documents · {totalPages} total pages</div>
+          {active.documents.map((doc) => <div key={doc.name} style={{ padding: "7px 0", borderBottom: `1px solid ${C.line}`, fontSize: 11 }}><b>{doc.name}</b><br /><span style={{ color: C.sub }}>{doc.pages} pages · {doc.status}</span></div>)}
+        </div>
+        <TechnicalDetails active={active} />
+        <div style={{ background: C.blueSoft, border: `1px solid ${C.blue}33`, borderRadius: 10, padding: 12 }}><b style={{ color: C.blue, fontSize: 11.5 }}>Demo Workspace</b><p style={{ fontSize: 10.5, lineHeight: 1.5, color: C.blue, marginBottom: 0 }}>This case uses preloaded sample package data. Switch to Live Analysis to process a sample PDF through Azure.</p></div>
       </aside>
 
       <div>
@@ -156,19 +203,15 @@ function ReviewScreen({ active, filter, setFilter, onBack, onOpenFinding, onRead
           </article>; })}
         </div>
         {!active.disposition && !isAwaitingCorrection && <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}><Button disabled={recommendation !== RECOMMENDATION.READY || !readyCheck.allowed} onClick={onReady}>Confirm Ready for Funding</Button><Button secondary onClick={onReturn} disabled={recommendation === RECOMMENDATION.READY}>Return for correction</Button></div>}
-        {!readyCheck.allowed && !isAwaitingCorrection && <div style={{ marginTop: 9, color: C.fail, fontSize: 11 }}>Funding confirmation blocked by {readyCheck.blockers.map((item) => item.id).join(", ")}. Resolve through evidence-backed review, an authorized exception, correction, or escalation.</div>}
+        {!readyCheck.allowed && !isAwaitingCorrection && !isCompleted && <div style={{ marginTop: 9, color: C.fail, fontSize: 11 }}>Funding confirmation blocked by {readyCheck.blockers.map((item) => item.id).join(", ")}. Resolve through evidence-backed review, an authorized exception, correction, or escalation.</div>}
         <div style={{ marginTop: 18, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14 }}><div style={{ fontWeight: 750 }}>Audit history</div>{active.audit.map((event, index) => <div key={`${event.at}-${index}`} style={{ display: "grid", gridTemplateColumns: "55px 105px 1fr", gap: 9, padding: "9px 0", borderBottom: `1px solid ${C.line}`, fontSize: 11 }}><span style={mono}>{event.at}</span><b>{event.actor}</b><span>{event.action} · <span style={{ color: C.sub }}>{event.detail}</span></span></div>)}</div>
       </div>
     </section>
   </main>;
 }
 
-function SamplesScreen({ openReview }) {
-  return <main style={{ padding: 24, maxWidth: 850, margin: "0 auto" }}><h1 style={{ ...display }}>Explore sample workflow</h1><p style={{ color: C.sub }}>Choose a sample package to explore a clean review, a deterministic exception, or uncertain evidence that requires human judgment.</p><div style={{ display: "grid", gap: 12 }}>{SAMPLE_OPTIONS.map((sample) => <div key={sample.id} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 11, padding: 16, display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center" }}><div><b>{sample.label}</b><p style={{ color: C.sub, fontSize: 12, marginBottom: 0 }}>{sample.description}</p></div><Button onClick={() => openReview(sample.id)}>Open sample</Button></div>)}</div></main>;
-}
-
 function ProfilesScreen() {
-  return <main style={{ padding: 24, maxWidth: 950, margin: "0 auto" }}><h1 style={{ ...display }}>Published Rule Profiles</h1><p style={{ color: C.sub, fontSize: 13 }}>Assay resolves the applicable policy profile from jurisdiction and future loan, investor, client, and execution-channel overlays. Policy parameters are versioned data; reusable rule templates remain deterministic code.</p><div style={{ display: "grid", gap: 12 }}>{Object.values(PROFILE_REGISTRY).map((profile) => <div key={profile.id} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 16, display: "grid", gridTemplateColumns: "1fr repeat(4,120px)", gap: 10, alignItems: "center", fontSize: 12 }}><b>{profile.jurisdiction}</b><span style={mono}>{profile.id}</span><span>v{profile.version}</span><span>{profile.effectiveAt}</span><Pill tone={{ color: C.pass, bg: C.passSoft }}>{profile.status}</Pill></div>)}</div><div style={{ marginTop: 14, background: C.reviewSoft, color: C.review, borderRadius: 9, padding: 12, fontSize: 11 }}>Sample profiles are fictional and are not legal, compliance, investor, or underwriting guidance.</div></main>;
+  return <main style={{ padding: 24, maxWidth: 950, margin: "0 auto" }}><h1 style={{ ...display }}>Published Rule Profiles</h1><p style={{ color: C.sub, fontSize: 13 }}>Assay resolves the applicable rule profile from jurisdiction and future loan, investor, client, and execution-channel overlays. Profile parameters are versioned data; reusable rule templates remain deterministic code.</p><div style={{ display: "grid", gap: 12 }}>{Object.values(PROFILE_REGISTRY).map((profile) => <div key={profile.id} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 16, display: "grid", gridTemplateColumns: "1fr repeat(4,120px)", gap: 10, alignItems: "center", fontSize: 12 }}><b>{profile.jurisdiction}</b><span style={mono}>{profile.id}</span><span>v{profile.version}</span><span>{profile.effectiveAt}</span><Pill tone={{ color: C.pass, bg: C.passSoft }}>{profile.status}</Pill></div>)}</div><div style={{ marginTop: 14, background: C.reviewSoft, color: C.review, borderRadius: 9, padding: 12, fontSize: 11 }}>Sample profiles are fictional and are not legal, compliance, investor, or underwriting guidance.</div></main>;
 }
 
 function GovernanceScreen({ reviews }) {
@@ -176,7 +219,7 @@ function GovernanceScreen({ reviews }) {
   const total = allRules.length;
   const overrides = allRules.filter((rule) => rule.overridden).length;
   const lowConfidence = allRules.filter((rule) => rule.confidence.reviewTrigger).length;
-  return <main style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}><h1 style={{ ...display }}>AI Governance</h1><p style={{ color: C.sub, maxWidth: 780, fontSize: 13 }}>Confidence routes work; it does not determine the final business disposition. Current prototype thresholds route to human review when classification is below {ROUTING_THRESHOLDS.classification.toFixed(2)}, extraction is below {ROUTING_THRESHOLDS.extraction.toFixed(2)}, OCR quality is low, or required evidence is incomplete.</p><section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10, margin: "18px 0" }}>{[["Rule evaluations", total], ["Human overrides", overrides], ["Confidence routes", lowConfidence], ["False-ready release gate", "0"], ["Class threshold", ROUTING_THRESHOLDS.classification.toFixed(2)], ["Extract threshold", ROUTING_THRESHOLDS.extraction.toFixed(2)]].map(([k,v]) => <div key={k} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14 }}><div style={{ ...mono, color: C.sub, fontSize: 10 }}>{k.toUpperCase()}</div><div style={{ ...display, fontSize: 22, fontWeight: 800, marginTop: 5 }}>{v}</div></div>)}</section><div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 16 }}><b>Routing policy</b><p style={{ color: C.sub, lineHeight: 1.6, fontSize: 12 }}>Low confidence produces <b>Needs Review</b>, not Fail. A Fail should come from deterministic evidence of a policy violation—for example, the expected borrower count is two but only one signature indicator is found. Thresholds are prototype defaults and should eventually be calibrated by field and risk tier using a labeled evaluation set.</p></div></main>;
+  return <main style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}><h1 style={{ ...display }}>AI Governance</h1><p style={{ color: C.sub, maxWidth: 780, fontSize: 13 }}>Confidence routes work; it does not determine the final business disposition. Current prototype thresholds route to human review when classification is below {ROUTING_THRESHOLDS.classification.toFixed(2)}, extraction is below {ROUTING_THRESHOLDS.extraction.toFixed(2)}, OCR quality is low, or required evidence is incomplete.</p><section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10, margin: "18px 0" }}>{[["Rule evaluations", total], ["Human overrides", overrides], ["Confidence routes", lowConfidence], ["False-ready release gate", "0"], ["Class threshold", ROUTING_THRESHOLDS.classification.toFixed(2)], ["Extract threshold", ROUTING_THRESHOLDS.extraction.toFixed(2)]].map(([k,v]) => <div key={k} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14 }}><div style={{ ...mono, color: C.sub, fontSize: 10 }}>{k.toUpperCase()}</div><div style={{ ...display, fontSize: 22, fontWeight: 800, marginTop: 5 }}>{v}</div></div>)}</section><div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 16 }}><b>Routing policy</b><p style={{ color: C.sub, lineHeight: 1.6, fontSize: 12 }}>Low confidence produces <b>Needs Review</b>, not Fail. A Fail should come from deterministic evidence of a rule violation—for example, the expected borrower count is two but only one signature indicator is found. Thresholds are prototype defaults and should eventually be calibrated by field and risk tier using a labeled evaluation set.</p></div></main>;
 }
 
 function OverrideModal({ modal, override, setOverride, onApply, onClose }) {
@@ -205,7 +248,6 @@ export default function App() {
 
   const openReview = (id) => { setActiveId(id); setFilter("All"); setScreen("review"); };
   const updateActive = (fn) => setReviews((items) => items.map((review) => review.id === active.id ? fn(structuredClone(review)) : review));
-
   const openFinding = (rule) => { setModal({ type: "override", rule }); setOverride({ reason: "", note: "", authorizedException: false, secondApproval: false }); };
 
   const applyOverride = () => {
@@ -243,7 +285,7 @@ export default function App() {
   };
 
   const returnForCorrection = () => {
-    const findings = active.rules.filter((rule) => rule.status === "Fail" || rule.status === "Needs Review");
+    const findings = active.rules.filter((rule) => (rule.status === "Fail" || rule.status === "Needs Review") && !rule.authorizedException);
     updateActive((review) => { review.workflow = "Awaiting Correction"; review.disposition = null; review.correctionRequest = { status: "Open", ruleIds: findings.map((rule) => rule.id), requestedAt: new Date().toISOString() }; review.audit.push({ at: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), actor: "Sample Analyst", action: "Package returned for correction", detail: `Correction requested for ${findings.map((rule) => rule.id).join(", ")} · awaiting resubmission` }); return review; });
   };
 
@@ -251,7 +293,6 @@ export default function App() {
     <AppHeader screen={screen} setScreen={setScreen} />
     {screen === "dashboard" && <Dashboard reviews={reviews} openReview={openReview} />}
     {screen === "review" && <ReviewScreen active={active} filter={filter} setFilter={setFilter} onBack={() => setScreen("dashboard")} onOpenFinding={openFinding} onReady={recordDisposition} onReturn={returnForCorrection} />}
-    {screen === "samples" && <SamplesScreen openReview={openReview} />}
     {screen === "profiles" && <ProfilesScreen />}
     {screen === "governance" && <GovernanceScreen reviews={reviews} />}
     <OverrideModal modal={modal} override={override} setOverride={setOverride} onApply={applyOverride} onClose={() => setModal(null)} />
