@@ -4,6 +4,7 @@ import UnifiedApp from "./UnifiedApp.jsx";
 import OverviewScreen from "./OverviewScreen.jsx";
 
 const LiveAnalysis = lazy(() => import("./LiveAnalysis.jsx"));
+const PackageAnalysis = lazy(() => import("./PackageAnalysis.jsx"));
 
 const shellFont = "Inter, ui-sans-serif, system-ui, sans-serif";
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
@@ -73,12 +74,15 @@ function CaseEntry() {
   </div>;
 }
 
-function LiveEntry() {
+function LiveEntry({ mode = "note" }) {
+  const isPackage = mode === "package";
   return <div className="assay-live-shell" style={{ minHeight: "100vh", background: "#f5f7f6" }}>
-    <style>{`.assay-live-content > main > header { display: none !important; }`}</style>
+    {!isPackage && <style>{`.assay-live-content > main > header { display: none !important; }`}</style>}
     <ProductHeader active="" />
     <div className="assay-live-content">
-      <Suspense fallback={<div style={{ padding: 40, fontFamily: shellFont }}>Loading Live Analysis…</div>}><LiveAnalysis /></Suspense>
+      <Suspense fallback={<div style={{ padding: 40, fontFamily: shellFont }}>Loading {isPackage ? "Package Intelligence" : "Live Analysis"}…</div>}>
+        {isPackage ? <PackageAnalysis /> : <LiveAnalysis />}
+      </Suspense>
     </div>
   </div>;
 }
@@ -86,9 +90,11 @@ function LiveEntry() {
 function Root() {
   const params = new URLSearchParams(window.location.search);
   const isLive = window.location.pathname === "/live";
+  const isPackage = window.location.pathname === "/package";
   const hasCase = params.has("case");
   const workspace = params.get("workspace");
 
+  if (isPackage) return <LiveEntry mode="package" />;
   if (isLive) return <LiveEntry />;
   if (hasCase) return <CaseEntry />;
   if (workspace) return <WorkspaceEntry target={["dashboard", "profiles", "governance"].includes(workspace) ? workspace : "dashboard"} />;
