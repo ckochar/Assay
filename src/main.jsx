@@ -20,17 +20,9 @@ function OverviewHeader({ onNavigate }) {
       <span style={{ width: 34, height: 34, display: "grid", placeItems: "center", borderRadius: 9, background: "#0d6259", color: "white", fontWeight: 800 }}>AY</span>
       <span style={{ textAlign: "left" }}><b>Assay</b><span style={{ display: "block", fontFamily: mono, color: "#60706a", fontSize: 10 }}>post-execution mortgage QC</span></span>
     </button>
-    <nav style={{ display: "flex", gap: 6 }}>
+    <nav style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
       {items.map(([id, label]) => <button key={id} type="button" onClick={() => onNavigate(id)} style={{ fontFamily: mono, border: `1px solid ${id === "overview" ? "#0d6259" : "#dfe6e2"}`, color: id === "overview" ? "#0d6259" : "#60706a", background: id === "overview" ? "#e4f0ee" : "#fff", borderRadius: 7, padding: "7px 10px", cursor: "pointer", fontSize: 11 }}>{label}</button>)}
     </nav>
-    <div style={{ display: "grid", justifyItems: "end", gap: 4 }}>
-      <div style={{ fontFamily: mono, color: "#60706a", fontSize: 9 }}>EXPERIENCE MODE</div>
-      <div style={{ display: "flex", border: "1px solid #dfe6e2", borderRadius: 8, padding: 3, background: "#f5f7f6" }}>
-        <button type="button" onClick={() => onNavigate("dashboard")} style={{ fontFamily: mono, border: 0, background: "#e4f0ee", color: "#0d6259", fontSize: 10, fontWeight: 750, padding: "6px 9px", borderRadius: 6, cursor: "pointer" }}>Demo Workspace</button>
-        <a href="/live" style={{ fontFamily: mono, textDecoration: "none", color: "#60706a", fontSize: 10, fontWeight: 750, padding: "6px 9px", borderRadius: 6 }}>Live Analysis</a>
-      </div>
-      <div style={{ color: "#60706a", fontSize: 10 }}>Sample data + live Azure path · portfolio prototype</div>
-    </div>
   </header>;
 }
 
