@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import UnifiedApp from "./UnifiedApp.jsx";
 import OverviewScreen from "./OverviewScreen.jsx";
@@ -35,8 +35,31 @@ function OverviewHeader({ onNavigate }) {
 }
 
 function goToWorkspace(screen = "dashboard") {
-  try { window.sessionStorage.setItem("assay.workspace.start", screen); } catch { /* session hint is optional */ }
+  try { window.sessionStorage.setItem("assay.workspace.start", screen); } catch { /* optional navigation hint */ }
   window.location.assign("/?workspace=1");
+}
+
+function WorkspaceEntry() {
+  useEffect(() => {
+    let target = "dashboard";
+    try {
+      target = window.sessionStorage.getItem("assay.workspace.start") || "dashboard";
+      window.sessionStorage.removeItem("assay.workspace.start");
+    } catch { /* dashboard remains the fallback */ }
+    if (target === "dashboard") return;
+
+    const labels = { profiles: "Rule Profiles", governance: "AI Governance" };
+    const expected = labels[target];
+    if (!expected) return;
+
+    const timer = window.setTimeout(() => {
+      const button = Array.from(document.querySelectorAll("button")).find((item) => item.textContent?.trim() === expected);
+      button?.click();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  return <UnifiedApp />;
 }
 
 function Root() {
@@ -49,11 +72,11 @@ function Root() {
     return <Suspense fallback={<div style={{ padding: 40, fontFamily: shellFont }}>Loading Live Analysis…</div>}><LiveAnalysis /></Suspense>;
   }
 
-  if (hasCase || workspace) return <UnifiedApp />;
+  if (hasCase) return <UnifiedApp />;
+  if (workspace) return <WorkspaceEntry />;
 
   const navigate = (screen) => {
     if (screen === "overview") return;
-    if (screen === "dashboard") return goToWorkspace("dashboard");
     goToWorkspace(screen);
   };
 
