@@ -120,7 +120,7 @@ function AboutPrototype() {
   return <section style={{ marginTop: 24, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16 }}>
     <div style={{ ...mono, color: C.sub, fontSize: 9 }}>ABOUT THIS PROTOTYPE</div>
     <h2 style={{ ...display, margin: "4px 0 4px", fontSize: 18 }}>What you can use today</h2>
-    <p style={{ color: C.sub, fontSize: 10.8, margin: "0 0 12px" }}>The product separates the demonstrated workflow from capabilities that are not yet connected in the live path.</p>
+    <p style={{ color: C.sub, fontSize: 10.8, margin: "0 0 12px" }}>The product separates the demonstrated workflow from capabilities that are still being connected end to end.</p>
 
     <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(210px,1fr))", gap: 9 }}>
       <div style={{ background: C.muted, border: `1px solid ${C.line}`, borderRadius: 9, padding: 13 }}>
@@ -128,8 +128,8 @@ function AboutPrototype() {
         <p style={{ color: C.sub, fontSize: 10.3, lineHeight: 1.5, margin: "7px 0 0" }}>Preloaded mortgage packages demonstrate evidence-backed findings, human review, correction, overrides, final disposition, and audit history.</p>
       </div>
       <div style={{ background: C.blueSoft, border: `1px solid ${C.blue}33`, borderRadius: 9, padding: 13 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><b style={{ fontSize: 11.5 }}>Live Analysis</b><span style={{ ...mono, color: C.blue, background: C.panel, borderRadius: 6, padding: "4px 7px", fontSize: 9, fontWeight: 800 }}>AZURE</span></div>
-        <p style={{ color: C.sub, fontSize: 10.3, lineHeight: 1.5, margin: "7px 0 0" }}>Analyze a sample Promissory Note with Azure Document Intelligence and create the same QC case used by the reviewer workspace.</p>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><b style={{ fontSize: 11.5 }}>Package Intelligence</b><span style={{ ...mono, color: C.blue, background: C.panel, borderRadius: 6, padding: "4px 7px", fontSize: 9, fontWeight: 800 }}>BETA</span></div>
+        <p style={{ color: C.sub, fontSize: 10.3, lineHeight: 1.5, margin: "7px 0 0" }}>Analyze up to eight pages with Azure, classify and segment package documents, extract context, and surface profile-resolution confidence before QC evaluation.</p>
       </div>
       <div style={{ background: C.muted, border: `1px solid ${C.line}`, borderRadius: 9, padding: 13 }}>
         <div style={{ fontWeight: 800, fontSize: 11.5 }}>Technology</div>
@@ -140,8 +140,8 @@ function AboutPrototype() {
     <details style={{ marginTop: 10, background: C.muted, border: `1px solid ${C.line}`, borderRadius: 9, padding: "10px 12px" }}>
       <summary style={{ cursor: "pointer", fontSize: 10.8, fontWeight: 800 }}>View technical details and current scope</summary>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(260px,1fr))", gap: 12, marginTop: 10, color: C.sub, fontSize: 10.3, lineHeight: 1.55 }}>
-        <div><b style={{ color: C.ink }}>Live scope</b><br />The current live pipeline analyzes pages 1–2 of a Promissory Note, preserves Azure page geometry for evidence highlighting, and uses a Live Note Baseline profile. Multi-document package intelligence and automatic rule-profile resolution are not yet connected.</div>
-        <div><b style={{ color: C.ink }}>Decision model</b><br />Azure performs document OCR/layout analysis. Assay normalizes extracted information and runs versioned QC controls. Uncertain signature evidence remains a human-review item rather than being treated as a legally validated signature.</div>
+        <div><b style={{ color: C.ink }}>Live scope</b><br />Package Intelligence currently analyzes up to eight pages, produces a document inventory, extracts loan/jurisdiction context, and identifies a candidate jurisdiction profile. Package-level QC rule generation is the next connection. The earlier two-page Promissory Note analyzer remains available separately.</div>
+        <div><b style={{ color: C.ink }}>Decision model</b><br />Azure performs document OCR/layout analysis. Assay normalizes extracted information and uses transparent classification/context logic. Unknown or low-confidence pages remain review items rather than receiving a silent document or policy assignment.</div>
       </div>
     </details>
   </section>;
@@ -153,7 +153,7 @@ export default function OverviewScreen({ onNavigate }) {
       <div style={{ ...mono, color: C.teal, fontSize: 10, fontWeight: 800 }}>AI-ASSISTED POST-EXECUTION MORTGAGE QC</div>
       <h1 style={{ fontSize: 32, lineHeight: 1.12, margin: "10px 0 11px", maxWidth: 790 }}>From executed mortgage documents to evidence-backed QC decisions.</h1>
       <p style={{ color: C.sub, fontSize: 14, lineHeight: 1.6, maxWidth: 820, margin: 0 }}>Assay combines document AI, deterministic QC rules, source-linked evidence, and human review to help mortgage operations teams identify exceptions and record auditable dispositions.</p>
-      <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 19 }}><Action onClick={() => onNavigate("dashboard")}>Explore sample cases</Action><Action href="/live" secondary>Analyze a document live</Action></div>
+      <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 19 }}><Action onClick={() => onNavigate("dashboard")}>Explore sample cases</Action><Action href="/package" secondary>Analyze a package</Action></div>
       <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 14 }}><ProofPoint>Evidence-backed findings</ProofPoint><ProofPoint>Human review for uncertainty</ProofPoint><ProofPoint>Auditable decisions</ProofPoint></div>
       <ValueStrip />
     </section>
