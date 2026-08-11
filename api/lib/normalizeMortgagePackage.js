@@ -64,16 +64,23 @@ function evidenceFromPage(page, matchers = []) {
 
 function classifyPage(page) {
   const text = pageText(page);
-  let best = { type: "Unknown document", matched: 0, signals: [] };
+  const firstLine = page?.lines?.find((line) => line.content?.trim())?.content || "";
+  let best = { type: "Unknown document", matched: 0, signals: [], titleMatched: false };
 
   for (const definition of DOCUMENT_DEFINITIONS) {
     const matchedSignals = definition.signals.filter((signal) => signal.test(text));
-    if (matchedSignals.length > best.matched) {
-      best = { type: definition.type, matched: matchedSignals.length, signals: definition.signals };
+    const titleMatched = Boolean(definition.signals[0]?.test(firstLine));
+    if (matchedSignals.length > best.matched || (matchedSignals.length === best.matched && titleMatched && !best.titleMatched)) {
+      best = { type: definition.type, matched: matchedSignals.length, signals: definition.signals, titleMatched };
     }
   }
 
-  const confidence = best.matched === 0 ? 0.25 : clamp(0.52 + best.matched * 0.12, 0.52, 0.99);
+  const confidence = best.matched === 0
+    ? 0.25
+    : best.titleMatched
+      ? clamp(0.72 + (best.matched - 1) * 0.09, 0.72, 0.99)
+      : clamp(0.5 + best.matched * 0.12, 0.5, 0.9);
+
   return {
     page: page?.pageNumber || 1,
     type: best.type,
