@@ -36,115 +36,108 @@ function Action({ children, onClick, href, secondary = false }) {
   return <button type="button" onClick={onClick} style={style}>{children}</button>;
 }
 
-function WorkflowSteps() {
-  const steps = [
-    ["1", "Intake", "Receive an executed package through RON, Mobile Notary, QC Only, or upload."],
-    ["2", "Understand", "OCR and AI classify documents, extract structured fields, and preserve source evidence."],
-    ["3", "Apply Rules", "Resolve the applicable rule profile and evaluate deterministic QC controls."],
-    ["4", "Review", "Route exceptions and uncertain evidence to a human with the source evidence attached."],
-    ["5", "Dispose", "Confirm, override, return for correction, or record an authorized exception with audit history."],
+function ProofPoint({ children }) {
+  return <span style={{ ...mono, color: C.sub, background: C.muted, border: `1px solid ${C.line}`, borderRadius: 999, padding: "5px 9px", fontSize: 9.5, fontWeight: 750 }}>{children}</span>;
+}
+
+function WhyAssay() {
+  const capabilities = [
+    ["Understand", "Classify documents, extract structured information, and preserve page-linked source evidence."],
+    ["Evaluate", "Apply versioned QC controls to the extracted evidence instead of treating AI output as the final decision."],
+    ["Focus", "Route exceptions and uncertain evidence to a human reviewer so attention goes where judgment is needed."],
+    ["Record", "Preserve analyst actions, corrections, overrides, and the final disposition in an auditable history."],
   ];
 
-  return <section style={{ marginTop: 28 }}>
+  return <section style={{ marginTop: 24, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden" }}>
+    <div style={{ padding: "16px 18px", borderBottom: `1px solid ${C.line}` }}>
+      <div style={{ ...mono, color: C.sub, fontSize: 9 }}>WHY ASSAY</div>
+      <h2 style={{ ...display, margin: "4px 0 0", fontSize: 19 }}>Reduce manual document hunting without hiding the evidence.</h2>
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(280px,.9fr) minmax(430px,1.4fr)", gap: 0 }}>
+      <div style={{ padding: 18, background: C.muted, borderRight: `1px solid ${C.line}` }}>
+        <div style={{ ...mono, color: C.review, fontSize: 9, fontWeight: 800 }}>THE PROBLEM</div>
+        <p style={{ color: C.ink, fontSize: 13, lineHeight: 1.55, margin: "8px 0 8px" }}>Post-execution mortgage QC often requires analysts to move page by page through executed documents to determine whether the package is complete, correctly executed, and ready to move forward.</p>
+        <p style={{ color: C.sub, fontSize: 11, lineHeight: 1.55, margin: 0 }}>The work is repetitive, but missed exceptions can create rework, funding delays, and control risk.</p>
+      </div>
+      <div style={{ padding: 18 }}>
+        <div style={{ ...mono, color: C.teal, fontSize: 9, fontWeight: 800 }}>WHAT ASSAY DOES</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(180px,1fr))", gap: 9, marginTop: 9 }}>
+          {capabilities.map(([title, body]) => <div key={title} style={{ border: `1px solid ${C.line}`, borderRadius: 9, padding: 12 }}><div style={{ color: C.teal, fontWeight: 800, fontSize: 11.5 }}>{title}</div><div style={{ color: C.sub, fontSize: 10.4, lineHeight: 1.5, marginTop: 4 }}>{body}</div></div>)}
+        </div>
+      </div>
+    </div>
+  </section>;
+}
+
+function WorkflowSteps() {
+  const steps = [
+    ["1", "Intake", "Receive executed documents."],
+    ["2", "Understand", "Classify and extract evidence."],
+    ["3", "Apply Rules", "Evaluate QC controls."],
+    ["4", "Review", "Inspect exceptions and uncertainty."],
+    ["5", "Dispose", "Confirm, correct, or override."],
+  ];
+
+  return <section style={{ marginTop: 24 }}>
     <div style={{ ...mono, color: C.sub, fontSize: 9 }}>WORKFLOW</div>
     <h2 style={{ ...display, margin: "4px 0 4px", fontSize: 19 }}>How Assay works</h2>
-    <p style={{ color: C.sub, fontSize: 12, margin: "0 0 12px" }}>The operating loop from an executed document package to a human-accountable QC disposition.</p>
+    <p style={{ color: C.sub, fontSize: 11.5, margin: "0 0 11px" }}>A simple operating loop from executed documents to a human-accountable QC disposition.</p>
     <div style={{ display: "flex", gap: 6, alignItems: "stretch", overflowX: "auto" }}>
       {steps.map(([n, title, body], index) => <React.Fragment key={n}>
-        <div style={{ minWidth: 165, flex: 1, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 13 }}>
+        <div style={{ minWidth: 150, flex: 1, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12 }}>
           <span style={{ ...mono, display: "inline-flex", color: C.teal, background: C.tealSoft, borderRadius: 6, padding: "4px 7px", fontSize: 10, fontWeight: 800 }}>{n}</span>
-          <div style={{ fontWeight: 800, marginTop: 8, fontSize: 12 }}>{title}</div>
-          <div style={{ color: C.sub, fontSize: 10.5, lineHeight: 1.5, marginTop: 4 }}>{body}</div>
+          <div style={{ fontWeight: 800, marginTop: 7, fontSize: 11.5 }}>{title}</div>
+          <div style={{ color: C.sub, fontSize: 10, lineHeight: 1.45, marginTop: 3 }}>{body}</div>
         </div>
-        {index < steps.length - 1 && <div aria-hidden="true" style={{ alignSelf: "center", color: "#9aa7a1", fontSize: 19, flex: "0 0 auto" }}>→</div>}
+        {index < steps.length - 1 && <div aria-hidden="true" style={{ alignSelf: "center", color: "#9aa7a1", fontSize: 18, flex: "0 0 auto" }}>→</div>}
       </React.Fragment>)}
     </div>
   </section>;
 }
 
-function ArchitectureFlow() {
-  const stages = [
-    ["Executed package", "RON · Mobile Notary · QC Only · upload", "current"],
-    ["Document understanding", "OCR · classification · extraction · evidence", "current"],
-    ["Rule resolution", "Jurisdiction · transaction · investor/client overlays", "next"],
-    ["QC evaluation", "Versioned deterministic controls", "current"],
-    ["Human review", "Exceptions · uncertainty · overrides", "current"],
-    ["Disposition + audit", "Ready · correction · exception · trace", "current"],
-  ];
+function AboutPrototype() {
+  return <section style={{ marginTop: 24, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16 }}>
+    <div style={{ ...mono, color: C.sub, fontSize: 9 }}>ABOUT THIS PROTOTYPE</div>
+    <h2 style={{ ...display, margin: "4px 0 4px", fontSize: 18 }}>What you can use today</h2>
+    <p style={{ color: C.sub, fontSize: 10.8, margin: "0 0 12px" }}>The product separates the demonstrated workflow from capabilities that are not yet connected in the live path.</p>
 
-  return <section style={{ marginTop: 28, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 17 }}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 10, flexWrap: "wrap" }}>
-      <div><div style={{ ...mono, color: C.sub, fontSize: 9 }}>PRODUCT ARCHITECTURE</div><h2 style={{ ...display, margin: "4px 0", fontSize: 18 }}>From package to decision</h2><p style={{ color: C.sub, fontSize: 11.5, margin: 0 }}>AI understands the documents and evidence; versioned controls own QC decisions wherever deterministic evaluation is possible.</p></div>
-      <span style={{ ...mono, color: C.review, background: C.reviewSoft, borderRadius: 6, padding: "5px 8px", fontSize: 9.5, fontWeight: 800 }}>RULE RESOLUTION EXPANDS NEXT</span>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(210px,1fr))", gap: 9 }}>
+      <div style={{ background: C.muted, border: `1px solid ${C.line}`, borderRadius: 9, padding: 13 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><b style={{ fontSize: 11.5 }}>Demo Workspace</b><span style={{ ...mono, color: C.teal, background: C.tealSoft, borderRadius: 6, padding: "4px 7px", fontSize: 9, fontWeight: 800 }}>AVAILABLE</span></div>
+        <p style={{ color: C.sub, fontSize: 10.3, lineHeight: 1.5, margin: "7px 0 0" }}>Preloaded mortgage packages demonstrate evidence-backed findings, human review, correction, overrides, final disposition, and audit history.</p>
+      </div>
+      <div style={{ background: C.blueSoft, border: `1px solid ${C.blue}33`, borderRadius: 9, padding: 13 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><b style={{ fontSize: 11.5 }}>Live Analysis</b><span style={{ ...mono, color: C.blue, background: C.panel, borderRadius: 6, padding: "4px 7px", fontSize: 9, fontWeight: 800 }}>AZURE</span></div>
+        <p style={{ color: C.sub, fontSize: 10.3, lineHeight: 1.5, margin: "7px 0 0" }}>Analyze a sample Promissory Note with Azure Document Intelligence and create the same QC case used by the reviewer workspace.</p>
+      </div>
+      <div style={{ background: C.muted, border: `1px solid ${C.line}`, borderRadius: 9, padding: 13 }}>
+        <div style={{ fontWeight: 800, fontSize: 11.5 }}>Technology</div>
+        <p style={{ color: C.sub, fontSize: 10.3, lineHeight: 1.55, margin: "7px 0 0" }}>React + Vite · Azure Document Intelligence · PDF.js · Vercel Functions · Node.js · build-gated automated tests.</p>
+      </div>
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(165px,1fr))", gap: 8, marginTop: 14 }}>
-      {stages.map(([title, body, state], index) => <div key={title} style={{ background: state === "next" ? C.reviewSoft : C.muted, border: `1px solid ${state === "next" ? `${C.review}44` : C.line}`, borderRadius: 9, padding: 12, position: "relative" }}>
-        <div style={{ ...mono, color: state === "next" ? C.review : C.sub, fontSize: 9 }}>{String(index + 1).padStart(2, "0")}{state === "next" ? " · NEXT" : ""}</div>
-        <div style={{ fontWeight: 800, fontSize: 11.5, marginTop: 5 }}>{title}</div>
-        <div style={{ color: C.sub, fontSize: 10, lineHeight: 1.45, marginTop: 4 }}>{body}</div>
-      </div>)}
-    </div>
-  </section>;
-}
 
-function CapabilityCards({ onNavigate }) {
-  const cards = [
-    ["QC Workspace", "Review sample and live-analyzed cases, inspect evidence, resolve findings, and record final dispositions.", "Open QC Dashboard", "dashboard"],
-    ["Rule Profiles", "See how QC controls and policy parameters are versioned and associated with evaluation context.", "View Rule Profiles", "profiles"],
-    ["AI Governance", "Inspect confidence routing, human-review safeguards, overrides, and the zero-false-ready release gate.", "View AI Governance", "governance"],
-  ];
-  return <section style={{ marginTop: 28 }}>
-    <div style={{ ...mono, color: C.sub, fontSize: 9 }}>EXPLORE</div>
-    <h2 style={{ ...display, margin: "4px 0 12px", fontSize: 18 }}>What you can explore</h2>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 10 }}>
-      {cards.map(([title, body, action, screen]) => <button type="button" key={title} onClick={() => onNavigate(screen)} style={{ ...display, textAlign: "left", background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 15, cursor: "pointer", color: C.ink }}>
-        <div style={{ fontWeight: 800, fontSize: 13 }}>{title}</div>
-        <div style={{ color: C.sub, fontSize: 10.8, lineHeight: 1.5, marginTop: 5, minHeight: 48 }}>{body}</div>
-        <div style={{ color: C.teal, fontSize: 10.5, fontWeight: 800, marginTop: 10 }}>{action} →</div>
-      </button>)}
-    </div>
-  </section>;
-}
-
-function PrototypeScope() {
-  const rows = [
-    ["Demo Workspace", "Preloaded mortgage-package scenarios demonstrating the full analyst review and disposition lifecycle.", "Available", C.teal, C.tealSoft],
-    ["Live Analysis", "Azure Document Intelligence analyzes a sample Promissory Note, currently scoped to pages 1–2, then creates the same QC case used by the review workspace.", "Available", C.blue, C.blueSoft],
-    ["True Package Intelligence", "Multi-document package splitting/classification plus automatic context and rule-profile resolution across the package.", "Next", C.review, C.reviewSoft],
-  ];
-  return <section style={{ marginTop: 28, background: C.muted, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16 }}>
-    <div style={{ ...mono, color: C.sub, fontSize: 9 }}>PROTOTYPE SCOPE</div>
-    <h2 style={{ ...display, margin: "4px 0 5px", fontSize: 17 }}>What is live today</h2>
-    <p style={{ color: C.sub, fontSize: 10.8, margin: "0 0 10px" }}>Assay separates demonstrated capabilities from the next implementation layer.</p>
-    <div style={{ display: "grid", gap: 7 }}>
-      {rows.map(([title, body, status, color, bg]) => <div key={title} style={{ display: "grid", gridTemplateColumns: "minmax(145px,.7fr) minmax(300px,2fr) auto", gap: 12, alignItems: "center", background: "#ffffffaa", border: `1px solid ${C.line}`, borderRadius: 8, padding: "10px 12px" }}>
-        <b style={{ fontSize: 11.5 }}>{title}</b><span style={{ color: C.sub, fontSize: 10.3, lineHeight: 1.45 }}>{body}</span><span style={{ ...mono, color, background: bg, borderRadius: 6, padding: "4px 7px", fontSize: 9.5, fontWeight: 800 }}>{status}</span>
-      </div>)}
-    </div>
+    <details style={{ marginTop: 10, background: C.muted, border: `1px solid ${C.line}`, borderRadius: 9, padding: "10px 12px" }}>
+      <summary style={{ cursor: "pointer", fontSize: 10.8, fontWeight: 800 }}>View technical details and current scope</summary>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(260px,1fr))", gap: 12, marginTop: 10, color: C.sub, fontSize: 10.3, lineHeight: 1.55 }}>
+        <div><b style={{ color: C.ink }}>Live scope</b><br />The current live pipeline analyzes pages 1–2 of a Promissory Note, preserves Azure page geometry for evidence highlighting, and uses a Live Note Baseline profile. Multi-document package intelligence and automatic rule-profile resolution are not yet connected.</div>
+        <div><b style={{ color: C.ink }}>Decision model</b><br />Azure performs document OCR/layout analysis. Assay normalizes extracted information and runs versioned QC controls. Uncertain signature evidence remains a human-review item rather than being treated as a legally validated signature.</div>
+      </div>
+    </details>
   </section>;
 }
 
 export default function OverviewScreen({ onNavigate }) {
-  return <main style={{ ...display, maxWidth: 1180, margin: "0 auto", padding: "34px 24px 28px", color: C.ink }}>
-    <section style={{ display: "grid", gridTemplateColumns: "minmax(0,1.35fr) minmax(280px,.65fr)", gap: 18, alignItems: "stretch" }}>
-      <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 14, padding: "28px 28px 25px" }}>
-        <div style={{ ...mono, color: C.teal, fontSize: 10, fontWeight: 800 }}>AI-ASSISTED POST-EXECUTION MORTGAGE QC</div>
-        <h1 style={{ fontSize: 32, lineHeight: 1.12, margin: "10px 0 12px", maxWidth: 760 }}>From executed documents to evidence-backed QC disposition.</h1>
-        <p style={{ color: C.sub, fontSize: 14, lineHeight: 1.6, maxWidth: 760, margin: 0 }}>Assay helps mortgage operations teams understand executed documents, evaluate QC controls against source evidence, focus human attention on true exceptions or uncertainty, and preserve the reasoning behind the final disposition.</p>
-        <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 20 }}><Action onClick={() => onNavigate("dashboard")}>Explore sample cases</Action><Action href="/live" secondary>Analyze a document live</Action></div>
-      </div>
-      <div style={{ display: "grid", gap: 8 }}>
-        {[
-          ["Document understanding", "OCR + AI organize document content into structured fields and page-linked evidence."],
-          ["Evidence-first QC", "Each finding shows what Assay evaluated and where the supporting source evidence came from."],
-          ["Human accountability", "Uncertain or high-risk findings stay reviewable; overrides and final dispositions remain auditable."],
-        ].map(([title, body]) => <div key={title} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14 }}><div style={{ color: C.teal, fontWeight: 800, fontSize: 11.5 }}>{title}</div><div style={{ color: C.sub, fontSize: 10.5, lineHeight: 1.5, marginTop: 4 }}>{body}</div></div>)}
-      </div>
+  return <main style={{ ...display, maxWidth: 1120, margin: "0 auto", padding: "30px 24px 28px", color: C.ink }}>
+    <section style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 14, padding: "29px 30px 25px" }}>
+      <div style={{ ...mono, color: C.teal, fontSize: 10, fontWeight: 800 }}>AI-ASSISTED POST-EXECUTION MORTGAGE QC</div>
+      <h1 style={{ fontSize: 32, lineHeight: 1.12, margin: "10px 0 11px", maxWidth: 790 }}>From executed mortgage documents to evidence-backed QC decisions.</h1>
+      <p style={{ color: C.sub, fontSize: 14, lineHeight: 1.6, maxWidth: 820, margin: 0 }}>Assay combines document AI, deterministic QC rules, source-linked evidence, and human review to help mortgage operations teams identify exceptions and record auditable dispositions.</p>
+      <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 19 }}><Action onClick={() => onNavigate("dashboard")}>Explore sample cases</Action><Action href="/live" secondary>Analyze a document live</Action></div>
+      <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 14 }}><ProofPoint>Evidence-backed findings</ProofPoint><ProofPoint>Human review for uncertainty</ProofPoint><ProofPoint>Auditable decisions</ProofPoint></div>
     </section>
 
+    <WhyAssay />
     <WorkflowSteps />
-    <ArchitectureFlow />
-    <CapabilityCards onNavigate={onNavigate} />
-    <PrototypeScope />
+    <AboutPrototype />
   </main>;
 }
