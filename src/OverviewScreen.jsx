@@ -40,6 +40,27 @@ function ProofPoint({ children }) {
   return <span style={{ ...mono, color: C.sub, background: C.muted, border: `1px solid ${C.line}`, borderRadius: 999, padding: "5px 9px", fontSize: 9.5, fontWeight: 750 }}>{children}</span>;
 }
 
+function ValueStrip() {
+  const metrics = [
+    ["10–15 min", "Manual QC baseline"],
+    ["1–2 min", "Assisted review target"],
+    ["80%+", "Potential review-time reduction"],
+  ];
+
+  return <div style={{ marginTop: 18, background: C.muted, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 9 }}>
+      <div style={{ ...mono, color: C.sub, fontSize: 9, fontWeight: 800 }}>ILLUSTRATIVE OPERATING TARGET · 30–40 PAGE PACKAGE</div>
+      <div style={{ color: C.sub, fontSize: 9.5 }}>Prototype assumptions, not measured production benchmarks.</div>
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(150px,1fr))", gap: 8 }}>
+      {metrics.map(([value, label]) => <div key={label} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 8, padding: "10px 12px" }}>
+        <div style={{ color: C.teal, fontSize: 20, lineHeight: 1, fontWeight: 850 }}>{value}</div>
+        <div style={{ ...mono, color: C.sub, fontSize: 9.5, marginTop: 6 }}>{label.toUpperCase()}</div>
+      </div>)}
+    </div>
+  </div>;
+}
+
 function WhyAssay() {
   const capabilities = [
     ["Understand", "Classify documents, extract structured information, and preserve page-linked source evidence."],
@@ -134,6 +155,7 @@ export default function OverviewScreen({ onNavigate }) {
       <p style={{ color: C.sub, fontSize: 14, lineHeight: 1.6, maxWidth: 820, margin: 0 }}>Assay combines document AI, deterministic QC rules, source-linked evidence, and human review to help mortgage operations teams identify exceptions and record auditable dispositions.</p>
       <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 19 }}><Action onClick={() => onNavigate("dashboard")}>Explore sample cases</Action><Action href="/live" secondary>Analyze a document live</Action></div>
       <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 14 }}><ProofPoint>Evidence-backed findings</ProofPoint><ProofPoint>Human review for uncertainty</ProofPoint><ProofPoint>Auditable decisions</ProofPoint></div>
+      <ValueStrip />
     </section>
 
     <WhyAssay />
