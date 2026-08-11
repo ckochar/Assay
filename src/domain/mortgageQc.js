@@ -22,11 +22,33 @@ export const RULE_STATUS = Object.freeze({
 });
 
 export const RECOMMENDATION = Object.freeze({
-  READY: "Ready for Confirmation",
+  READY: "Ready for Review",
   EXCEPTION: "Exception Identified",
   REVIEW: "Needs Review",
   UNABLE: "Unable to Process",
 });
+
+// Prototype routing defaults. These are workflow thresholds, not calibrated
+// probabilities that a business decision is correct. Published rule profiles
+// can eventually override them by document type, field, and risk tier.
+export const ROUTING_THRESHOLDS = Object.freeze({
+  classification: 0.8,
+  extraction: 0.75,
+});
+
+export function shouldRouteToHuman({
+  classification = null,
+  extraction = null,
+  ocrQuality = null,
+  evidenceComplete = true,
+  thresholds = ROUTING_THRESHOLDS,
+} = {}) {
+  if (evidenceComplete === false) return true;
+  if (String(ocrQuality || "").toLowerCase() === "low") return true;
+  if (Number.isFinite(classification) && classification < thresholds.classification) return true;
+  if (Number.isFinite(extraction) && extraction < thresholds.extraction) return true;
+  return false;
+}
 
 export function createConfidenceSignals({
   classification = null,
@@ -92,11 +114,11 @@ export function computeRecommendation(rules, { unableToProcess = false } = {}) {
 
   const active = rules.filter((rule) => rule.status !== RULE_STATUS.NOT_APPLICABLE);
 
-  if (active.some((rule) => rule.status === RULE_STATUS.FAIL)) {
+  if (active.some((rule) => rule.status === RULE_STATUS.FAIL && !rule.authorizedException)) {
     return RECOMMENDATION.EXCEPTION;
   }
 
-  if (active.some((rule) => rule.status === RULE_STATUS.NEEDS_REVIEW)) {
+  if (active.some((rule) => rule.status === RULE_STATUS.NEEDS_REVIEW && !rule.authorizedException)) {
     return RECOMMENDATION.REVIEW;
   }
 
