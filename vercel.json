@@ -1,5 +1,6 @@
 {
   "rewrites": [
-    { "source": "/live", "destination": "/index.html" }
+    { "source": "/live", "destination": "/index.html" },
+    { "source": "/package", "destination": "/index.html" }
   ]
 }
