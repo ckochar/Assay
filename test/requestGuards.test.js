@@ -5,7 +5,7 @@ import {
   getClientIp,
   resetRateLimitsForTests,
   validatePdfPayload,
-} from "../api/lib/requestGuards.js";
+} from "../server/lib/requestGuards.js";
 
 function pdfBase64(bytes = "%PDF-1.7\nsynthetic") {
   return Buffer.from(bytes).toString("base64");
