@@ -137,6 +137,11 @@ function AboutPrototype() {
       </div>
     </div>
 
+    <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap", background: C.tealSoft, color: C.teal, borderRadius: 9, padding: "10px 12px", fontSize: 10.5 }}>
+      <span><b>Decision-layer golden set:</b> 10 labeled cases · 0 false-ready · synthetic benchmark, not an OCR accuracy claim.</span>
+      <a href="/evaluation" style={{ ...mono, color: C.teal, fontWeight: 800, textDecoration: "none" }}>View evaluation →</a>
+    </div>
+
     <details style={{ marginTop: 10, background: C.muted, border: `1px solid ${C.line}`, borderRadius: 9, padding: "10px 12px" }}>
       <summary style={{ cursor: "pointer", fontSize: 10.8, fontWeight: 800 }}>View technical details and current scope</summary>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(260px,1fr))", gap: 12, marginTop: 10, color: C.sub, fontSize: 10.3, lineHeight: 1.55 }}>
