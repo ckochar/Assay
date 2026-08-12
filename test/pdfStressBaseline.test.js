@@ -11,22 +11,23 @@ test("measured digital PDF stress baseline preserves published counts and safety
   assert.equal(PDF_STRESS_BASELINE_META.packages, 3);
   assert.equal(PDF_STRESS_BASELINE_META.totalPages, 24);
   assert.equal(PDF_STRESS_BASELINE_ROWS.length, 3);
-  assert.equal(summary.classification.correct, 24);
-  assert.equal(summary.classification.total, 24);
-  assert.equal(summary.extraction.correct, 30);
-  assert.equal(summary.extraction.total, 30);
-  assert.equal(summary.evidence.correct, 25);
-  assert.equal(summary.evidence.present, 25);
-  assert.equal(summary.evidence.total, 25);
-  assert.equal(summary.recommendation.correct, 3);
-  assert.equal(summary.recommendation.total, 3);
-  assert.equal(summary.recommendation.falseReady, 0);
-  assert.equal(summary.recommendation.falseException, 0);
-  assert.equal(summary.recommendation.missedException, 0);
+  assert.equal(summary.packages, 3);
+  assert.equal(summary.pagesAnalyzed, 24);
+  assert.equal(summary.classificationCorrect, 24);
+  assert.equal(summary.classificationTotal, 24);
+  assert.equal(summary.extractionCorrect, 30);
+  assert.equal(summary.extractionTotal, 30);
+  assert.equal(summary.evidenceCorrect, 25);
+  assert.equal(summary.evidencePresent, 25);
+  assert.equal(summary.evidenceTotal, 25);
+  assert.equal(summary.recommendationCorrect, 3);
+  assert.equal(summary.falseReady, 0);
+  assert.equal(summary.falseException, 0);
+  assert.equal(summary.missedException, 0);
   assert.equal(summary.releaseGatePassed, true);
 });
 
 test("measured digital PDF stress baseline derives captured latency percentiles", () => {
-  assert.equal(PDF_STRESS_BASELINE_SUMMARY.latency.p50Ms, 12363);
-  assert.equal(PDF_STRESS_BASELINE_SUMMARY.latency.p95Ms, 12520);
+  assert.equal(PDF_STRESS_BASELINE_SUMMARY.p50LatencyMs, 12363);
+  assert.equal(PDF_STRESS_BASELINE_SUMMARY.p95LatencyMs, 12520);
 });
