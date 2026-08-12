@@ -120,7 +120,7 @@ function AboutPrototype() {
   return <section style={{ marginTop: 24, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16 }}>
     <div style={{ ...mono, color: C.sub, fontSize: 9 }}>ABOUT THIS PROTOTYPE</div>
     <h2 style={{ ...display, margin: "4px 0 4px", fontSize: 18 }}>What you can use today</h2>
-    <p style={{ color: C.sub, fontSize: 10.8, margin: "0 0 12px" }}>The product separates the demonstrated workflow from capabilities that are still being connected end to end.</p>
+    <p style={{ color: C.sub, fontSize: 10.8, margin: "0 0 12px" }}>The product demonstrates the workflow from package understanding through evidence-backed QC review while keeping legal, policy, and production boundaries explicit.</p>
 
     <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(210px,1fr))", gap: 9 }}>
       <div style={{ background: C.muted, border: `1px solid ${C.line}`, borderRadius: 9, padding: 13 }}>
@@ -129,7 +129,7 @@ function AboutPrototype() {
       </div>
       <div style={{ background: C.blueSoft, border: `1px solid ${C.blue}33`, borderRadius: 9, padding: 13 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><b style={{ fontSize: 11.5 }}>Package Intelligence</b><span style={{ ...mono, color: C.blue, background: C.panel, borderRadius: 6, padding: "4px 7px", fontSize: 9, fontWeight: 800 }}>BETA</span></div>
-        <p style={{ color: C.sub, fontSize: 10.3, lineHeight: 1.5, margin: "7px 0 0" }}>Analyze up to eight pages with Azure, classify and segment package documents, extract context, and surface profile-resolution confidence before QC evaluation.</p>
+        <p style={{ color: C.sub, fontSize: 10.3, lineHeight: 1.5, margin: "7px 0 0" }}>Analyze up to eight pages with Azure, classify and segment documents, resolve package context, generate package and document-specific QC controls, and hand the result into the same reviewer workspace.</p>
       </div>
       <div style={{ background: C.muted, border: `1px solid ${C.line}`, borderRadius: 9, padding: 13 }}>
         <div style={{ fontWeight: 800, fontSize: 11.5 }}>Technology</div>
@@ -140,8 +140,8 @@ function AboutPrototype() {
     <details style={{ marginTop: 10, background: C.muted, border: `1px solid ${C.line}`, borderRadius: 9, padding: "10px 12px" }}>
       <summary style={{ cursor: "pointer", fontSize: 10.8, fontWeight: 800 }}>View technical details and current scope</summary>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(260px,1fr))", gap: 12, marginTop: 10, color: C.sub, fontSize: 10.3, lineHeight: 1.55 }}>
-        <div><b style={{ color: C.ink }}>Live scope</b><br />Package Intelligence currently analyzes up to eight pages, produces a document inventory, extracts loan/jurisdiction context, and identifies a candidate jurisdiction profile. Package-level QC rule generation is the next connection. The earlier two-page Promissory Note analyzer remains available separately.</div>
-        <div><b style={{ color: C.ink }}>Decision model</b><br />Azure performs document OCR/layout analysis. Assay normalizes extracted information and uses transparent classification/context logic. Unknown or low-confidence pages remain review items rather than receiving a silent document or policy assignment.</div>
+        <div><b style={{ color: C.ink }}>Live scope</b><br />Package Intelligence analyzes up to eight pages, creates a document inventory, extracts loan and jurisdiction context, pins a candidate profile, and generates evidence-backed controls for package identity, Note dates and signature indicators, Right-to-Cancel content and dates, notary fields and chronology, and cross-document borrower/date consistency. The earlier two-page Promissory Note analyzer remains available separately.</div>
+        <div><b style={{ color: C.ink }}>Decision model</b><br />Azure performs document OCR/layout analysis. Assay normalizes extracted evidence and applies deterministic QC logic. Unknown or low-confidence evidence routes to review, while signature execution, notary execution, rescission applicability, and legal sufficiency remain human decisions rather than model claims.</div>
       </div>
     </details>
   </section>;
