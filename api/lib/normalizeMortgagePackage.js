@@ -55,7 +55,7 @@ function evidenceFromPage(page, matchers = []) {
   const lines = page?.lines || [];
   const line = lines.find((candidate) => matchers.some((matcher) => matcher.test(candidate.content))) || lines[0];
   return {
-    page: page?.pageNumber || 1,
+    page: Number.isInteger(page?.pageNumber) ? page.pageNumber : null,
     excerpt: line?.content || "No page evidence found",
     polygon: line?.polygon || null,
     pageGeometry: pageGeometry(page),
@@ -150,14 +150,18 @@ function extractJurisdiction(text, pages) {
   const addressLine = text.match(/Property Address\s*:\s*([^\n]+)/i)?.[1] || "";
   const postal = addressLine.match(/,\s*(TX|CA|FL)\b/i)?.[1]?.toUpperCase();
   if (postal) {
-    const page = pages.find((item) => pageText(item).includes(addressLine));
-    return { code: postal, confidence: 0.96, basis: "Property address", evidence: evidenceFromPage(page, [/Property Address/i]) };
+    return {
+      code: postal,
+      confidence: 0.96,
+      basis: "Property address",
+      evidence: findEvidence(pages, [/Property Address/i]),
+    };
   }
 
   for (const [name, code] of Object.entries(STATE_NAMES)) {
     const matcher = new RegExp(`\\b${name}\\b`, "i");
-    const page = pages.find((item) => matcher.test(pageText(item)));
-    if (page) return { code, confidence: 0.72, basis: "State text in package", evidence: evidenceFromPage(page, [matcher]) };
+    const evidence = findEvidence(pages, [matcher]);
+    if (evidence) return { code, confidence: 0.72, basis: "State text in package", evidence };
   }
 
   return { code: null, confidence: 0.2, basis: "Not resolved", evidence: null };
