@@ -51,6 +51,16 @@ function fieldRows(result, label) {
   });
 }
 
+function evidenceIsPresent(item) {
+  const excerpt = String(item?.excerpt || "").trim();
+  return Boolean(
+    Number.isInteger(item?.page) &&
+    item.page > 0 &&
+    excerpt &&
+    excerpt.toLowerCase() !== "no page evidence found"
+  );
+}
+
 function evidenceRows(result, label) {
   const documentQc = result?.documentQc || {};
   const rtc = documentQc.rightToCancel || {};
@@ -69,12 +79,18 @@ function evidenceRows(result, label) {
 
   return Object.entries(label.evidencePages || {})
     .filter(([, expectedPage]) => expectedPage !== null && expectedPage !== undefined)
-    .map(([name, expectedPage]) => ({
-      name,
-      expectedPage,
-      actualPage: evidence[name]?.page ?? null,
-      correct: evidence[name]?.page === expectedPage,
-    }));
+    .map(([name, expectedPage]) => {
+      const sourcePresent = evidenceIsPresent(evidence[name]);
+      const actualPage = evidence[name]?.page ?? null;
+      return {
+        name,
+        expectedPage,
+        actualPage,
+        sourcePresent,
+        excerpt: evidence[name]?.excerpt || null,
+        correct: sourcePresent && actualPage === expectedPage,
+      };
+    });
 }
 
 function classificationRows(result, label) {
@@ -103,6 +119,7 @@ export function scorePdfEvaluationCase({ scenario, result, predictedRecommendati
   const evidence = evidenceRows(result, scenario.label);
   const recommendation = recommendationFlags(predictedRecommendation, scenario.label.expectedRecommendation);
   const countCorrect = (rows) => rows.filter((row) => row.correct).length;
+  const evidencePresent = evidence.filter((row) => row.sourcePresent).length;
 
   return {
     id: scenario.id,
@@ -124,8 +141,10 @@ export function scorePdfEvaluationCase({ scenario, result, predictedRecommendati
     },
     evidence: {
       correct: countCorrect(evidence),
+      present: evidencePresent,
       total: evidence.length,
       sourcePageAccuracy: evidence.length ? countCorrect(evidence) / evidence.length : 0,
+      completeness: evidence.length ? evidencePresent / evidence.length : 0,
       rows: evidence,
     },
     recommendation,
@@ -150,6 +169,7 @@ export function summarizePdfEvaluation(rows = []) {
     summary.extractionCorrect += row.extraction.correct;
     summary.extractionTotal += row.extraction.total;
     summary.evidenceCorrect += row.evidence.correct;
+    summary.evidencePresent += row.evidence.present;
     summary.evidenceTotal += row.evidence.total;
     summary.recommendationCorrect += row.recommendation.correct ? 1 : 0;
     summary.falseReady += row.recommendation.falseReady ? 1 : 0;
@@ -163,6 +183,7 @@ export function summarizePdfEvaluation(rows = []) {
     extractionCorrect: 0,
     extractionTotal: 0,
     evidenceCorrect: 0,
+    evidencePresent: 0,
     evidenceTotal: 0,
     recommendationCorrect: 0,
     falseReady: 0,
@@ -179,6 +200,7 @@ export function summarizePdfEvaluation(rows = []) {
     classificationAccuracy: ratio(totals.classificationCorrect, totals.classificationTotal),
     extractionAccuracy: ratio(totals.extractionCorrect, totals.extractionTotal),
     evidenceSourcePageAccuracy: ratio(totals.evidenceCorrect, totals.evidenceTotal),
+    evidenceCompleteness: ratio(totals.evidencePresent, totals.evidenceTotal),
     recommendationAccuracy: ratio(totals.recommendationCorrect, rows.length),
     p50LatencyMs: percentile(latency, 0.5),
     p95LatencyMs: percentile(latency, 0.95),
