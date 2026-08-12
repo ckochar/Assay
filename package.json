@@ -5,10 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "npm test && vite build",
+    "preview": "vite preview",
+    "test": "node --test"
   },
   "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "6.1.200",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
