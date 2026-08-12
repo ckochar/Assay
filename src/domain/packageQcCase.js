@@ -40,6 +40,103 @@ function classificationEvidence(result) {
   return evidenceFor(result.package.documents, first?.evidence, "All analyzed pages classified");
 }
 
+function documentSpecificRules(result, ocrLabel) {
+  const qc = result.documentQc || {};
+  const rules = [];
+
+  if (qc.noteExecutionDate) {
+    rules.push({
+      id: "NOTE-DATE-001",
+      name: "Promissory Note execution date extracted",
+      severity: "Major",
+      fundingCritical: true,
+      status: qc.noteExecutionDate.value ? "Pass" : "Needs Review",
+      requirement: "The analyzed Promissory Note should contain a readable execution date linked to source evidence.",
+      extractedValue: qc.noteExecutionDate.value || "Execution date not extracted",
+      confidence: {
+        classification: null,
+        extraction: qc.noteExecutionDate.value ? 0.92 : 0.4,
+        ocrQuality: ocrLabel,
+        evidenceComplete: Boolean(qc.noteExecutionDate.value),
+        reviewTrigger: qc.noteExecutionDate.value ? null : "Note execution date not extracted",
+      },
+      evidence: evidenceFor(result.package.documents, qc.noteExecutionDate.evidence, "Note execution-date evidence not found"),
+    });
+  }
+
+  if (qc.noteSignatureIndicators) {
+    const indicators = qc.noteSignatureIndicators.indicators || [];
+    const allDetected = indicators.length > 0 && indicators.every((item) => item.indicatorDetected);
+    const firstEvidence = indicators.find((item) => item.evidence)?.evidence;
+    rules.push({
+      id: "NOTE-SIG-001",
+      name: "Promissory Note borrower signature indicators require confirmation",
+      severity: "Critical",
+      fundingCritical: true,
+      status: allDetected ? "Needs Review" : "Fail",
+      requirement: "OCR/layout indicators may help locate borrower execution evidence, but a human must confirm the source document; Assay does not treat OCR text as legal signature validation.",
+      extractedValue: indicators.length
+        ? indicators.map((item) => `${item.borrower}: ${item.indicatorDetected ? "indicator detected" : "indicator not detected"}`).join("; ")
+        : "No borrower identities available for signature comparison",
+      confidence: {
+        classification: null,
+        extraction: allDetected ? 0.68 : 0.35,
+        ocrQuality: ocrLabel,
+        evidenceComplete: false,
+        reviewTrigger: allDetected ? "Signature indicators require human confirmation" : "One or more borrower signature indicators were not detected",
+      },
+      evidence: evidenceFor(result.package.documents, firstEvidence, "Promissory Note signature indicator evidence not found"),
+    });
+  }
+
+  if (qc.rightToCancel) {
+    const complete = qc.rightToCancel.titleDetected && qc.rightToCancel.cancelLanguageDetected;
+    rules.push({
+      id: "RTC-CONTENT-001",
+      name: "Right-to-Cancel document content detected",
+      severity: "Critical",
+      fundingCritical: true,
+      status: complete ? "Pass" : "Needs Review",
+      requirement: "When a Right-to-Cancel document is present, the analyzed page should contain recognizable rescission title and cancellation-language evidence. This control does not determine transaction eligibility or legal sufficiency.",
+      extractedValue: `Title ${qc.rightToCancel.titleDetected ? "detected" : "not detected"}; cancellation language ${qc.rightToCancel.cancelLanguageDetected ? "detected" : "not detected"}`,
+      confidence: {
+        classification: null,
+        extraction: complete ? 0.91 : 0.5,
+        ocrQuality: ocrLabel,
+        evidenceComplete: complete,
+        reviewTrigger: complete ? null : "Right-to-Cancel content evidence is incomplete",
+      },
+      evidence: evidenceFor(result.package.documents, qc.rightToCancel.evidence, "Right-to-Cancel evidence not found"),
+    });
+  }
+
+  if (qc.notaryAcknowledgment) {
+    const fields = qc.notaryAcknowledgment.fields || {};
+    const present = Object.values(fields).filter(Boolean).length;
+    const total = Object.keys(fields).length;
+    const complete = total > 0 && present === total;
+    rules.push({
+      id: "NOT-FIELDS-001",
+      name: "Notary acknowledgment field indicators present",
+      severity: "Critical",
+      fundingCritical: true,
+      status: complete ? "Needs Review" : "Fail",
+      requirement: "Assay checks for text/layout indicators for venue, acknowledgment language, a notary indicator, and commission-expiration language. Human review remains required for actual execution, seal, identity, and legal sufficiency.",
+      extractedValue: `${present} of ${total} notary field indicators detected`,
+      confidence: {
+        classification: null,
+        extraction: complete ? 0.74 : 0.45,
+        ocrQuality: ocrLabel,
+        evidenceComplete: false,
+        reviewTrigger: complete ? "Notary field indicators require human confirmation" : "One or more notary field indicators were not detected",
+      },
+      evidence: evidenceFor(result.package.documents, qc.notaryAcknowledgment.evidence, "Notary acknowledgment evidence not found"),
+    });
+  }
+
+  return rules;
+}
+
 export function createPackageQcReview({
   result,
   meta = {},
@@ -151,6 +248,7 @@ export function createPackageQcReview({
       },
       evidence: classificationEvidence(result),
     },
+    ...documentSpecificRules(result, ocrLabel),
   ];
 
   const profile = candidate
@@ -218,7 +316,7 @@ export function createPackageQcReview({
         at: nowTime(now),
         actor: "System",
         action: "QC case created",
-        detail: `${rules.length} package-foundation controls · ${channel}`,
+        detail: `${rules.length} package and document-specific controls · ${channel}`,
       },
     ],
   };
