@@ -100,6 +100,8 @@ test("scores a perfect PDF evaluation case across independent layers", () => {
   assert.equal(row.classification.correct, 8);
   assert.equal(row.extraction.correct, 10);
   assert.equal(row.evidence.correct, 9);
+  assert.equal(row.evidence.present, 9);
+  assert.equal(row.evidence.completeness, 1);
   assert.equal(row.recommendation.correct, true);
   assert.equal(row.recommendation.falseReady, false);
 });
@@ -116,6 +118,24 @@ test("surfaces upstream misses separately from recommendation safety", () => {
   assert.equal(row.recommendation.correct, true);
 });
 
+test("does not award source-page credit to manufactured fallback evidence", () => {
+  const result = sampleResult();
+  result.context.jurisdiction.evidence = {
+    page: 1,
+    excerpt: "No page evidence found",
+    polygon: null,
+    pageGeometry: { width: null, height: null, unit: null },
+  };
+  const row = scorePdfEvaluationCase({ scenario, result, predictedRecommendation: "Needs Review" });
+  const jurisdiction = row.evidence.rows.find((item) => item.name === "jurisdiction");
+
+  assert.equal(jurisdiction.actualPage, 1);
+  assert.equal(jurisdiction.sourcePresent, false);
+  assert.equal(jurisdiction.correct, false);
+  assert.equal(row.evidence.correct, 8);
+  assert.equal(row.evidence.present, 8);
+});
+
 test("summary keeps false-ready as the release gate and computes latency percentiles", () => {
   const good = scorePdfEvaluationCase({ scenario, result: sampleResult(), predictedRecommendation: "Needs Review", latencyMs: 1000 });
   const unsafeScenario = { ...scenario, id: "PDF-T02", label: { ...scenario.label, expectedRecommendation: "Exception Identified" } };
@@ -123,6 +143,7 @@ test("summary keeps false-ready as the release gate and computes latency percent
   const summary = summarizePdfEvaluation([good, unsafe]);
   assert.equal(summary.falseReady, 1);
   assert.equal(summary.releaseGatePassed, false);
+  assert.equal(summary.evidenceCompleteness, 1);
   assert.equal(summary.p50LatencyMs, 1000);
   assert.equal(summary.p95LatencyMs, 3000);
 });
