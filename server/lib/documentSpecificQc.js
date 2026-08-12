@@ -1,3 +1,5 @@
+import { ocrLinesForPage, ocrPageText } from "./azureTextLayout.js";
+
 const MONTHS = "(?:January|February|March|April|May|June|July|August|September|October|November|December)";
 const MONTH_NUMBERS = Object.freeze({
   january: "01", february: "02", march: "03", april: "04", may: "05", june: "06",
@@ -5,7 +7,7 @@ const MONTH_NUMBERS = Object.freeze({
 });
 
 function pageText(page) {
-  return (page?.lines || []).map((line) => line.content).join("\n");
+  return ocrPageText(page);
 }
 
 function pageGeometry(page) {
@@ -22,12 +24,13 @@ function evidenceFromLine(page, line, fallback = "Evidence not found") {
     excerpt: line?.content || fallback,
     polygon: line?.polygon || null,
     pageGeometry: pageGeometry(page),
+    source: line?.source || null,
   };
 }
 
 function findLine(pages, matchers = []) {
   for (const page of pages) {
-    const line = (page?.lines || []).find((candidate) => matchers.some((matcher) => matcher.test(candidate.content)));
+    const line = ocrLinesForPage(page).find((candidate) => matchers.some((matcher) => matcher.test(candidate.content)));
     if (line) return { page, line, evidence: evidenceFromLine(page, line) };
   }
   return null;
@@ -35,7 +38,7 @@ function findLine(pages, matchers = []) {
 
 function findLastLine(pages, matchers = []) {
   for (const page of [...pages].reverse()) {
-    const line = [...(page?.lines || [])].reverse().find((candidate) => matchers.some((matcher) => matcher.test(candidate.content)));
+    const line = [...ocrLinesForPage(page)].reverse().find((candidate) => matchers.some((matcher) => matcher.test(candidate.content)));
     if (line) return { page, line, evidence: evidenceFromLine(page, line) };
   }
   return null;
