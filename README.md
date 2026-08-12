@@ -39,6 +39,7 @@ The current pipeline:
 - builds a package inventory
 - extracts loan number, borrower, jurisdiction, OCR-quality, and page-linked evidence
 - resolves a candidate TX/CA/FL sample rule profile only when supported by package context
+- compares the classified inventory with **fictional profile-configured required document types** for the QC-only sample flow
 - leaves unknown, low-confidence, or unresolved context explicit for human review
 
 Representative document types:
@@ -62,9 +63,9 @@ Assay derives evidence-backed signals and deterministic controls for areas such 
 - Right-to-Cancel title, cancellation language, and date chronology
 - notary venue, acknowledgment, and commission-expiration chronology
 - cross-document borrower-name consistency
-- package classification, loan identity, profile context, and OCR quality
+- package classification, loan identity, profile context, OCR quality, and profile-configured document inventory
 
-Signature or notary **legal validity is never inferred from OCR text alone**. Execution evidence requiring visual or legal judgment remains a human-review item.
+Signature or notary **legal validity is never inferred from OCR text alone**. Execution evidence requiring visual or legal judgment remains a human-review item. The sample document requirements are fictional portfolio configuration, not legal, investor, or lender guidance.
 
 ### Evidence-backed reviewer
 
@@ -74,7 +75,7 @@ The workspace supports Pass / Fail / Needs Review findings, source-page evidence
 
 ## Reliability evaluation
 
-Assay exposes two deliberately separate benchmarks on `/evaluation`.
+Assay now exposes three deliberately separate reliability slices on `/evaluation`.
 
 ### 1. Decision-layer golden set
 
@@ -103,13 +104,33 @@ Measured result across **40 pages**:
 - **P50 latency: 12.36 s**
 - **P95 latency: 12.71 s**
 
-These 100% values are an **initial controlled baseline, not a production accuracy claim**. The fixtures are clean generated digital PDFs; they do not establish performance on scans, handwriting, blur, skew, poor contrast, or broad unseen lender layouts. Processing cost was not instrumented, so Assay does not publish a fabricated cost-per-package number.
+These 100% values are an **initial controlled baseline, not a production accuracy claim**. The fixtures are clean generated digital PDFs; they do not establish performance on scans, handwriting, blur, severe skew, poor raster quality, or broad unseen lender layouts. Processing cost was not instrumented, so Assay does not publish a fabricated cost-per-package number.
 
-See [`docs/EVALUATION.md`](docs/EVALUATION.md) for scenario definitions, metric methodology, limitations, and next stress-set plans.
+### 3. Digital PDF stress set v1
+
+Three additional eight-page synthetic PDFs tested **mixed page rotation metadata**, **smaller/lighter compact two-column text**, and a **duplicated Closing Disclosure with the configured Notary Acknowledgment absent**.
+
+Final measured result across **24 benchmark pages**:
+
+- **24 / 24** expected page classifications
+- **30 / 30** labeled field values
+- **25 / 25** expected evidence source pages with evidence present
+- **3 / 3** package recommendation matches
+- **0** false-ready packages
+- **0** false exceptions
+- **0** missed deterministic exceptions
+- **P50 latency: 12.36 s**
+- **P95 latency: 12.52 s**
+
+The stress set produced a useful product change. In the first structural run, Azure correctly showed that the Notary document and its fields were absent, but Assay had no profile-driven rule that converted a confidently incomplete package inventory into an exception. Assay added `PKG-DOC-REQ-001`, versioned the fictional QC-only TX profile to **2.2.0**, and re-ran that case. The final published run correctly returned **Exception Identified** with `Missing: Notary Acknowledgment` while preserving zero false-ready behavior.
+
+This is still a **digital-document stress benchmark, not a scanned-image benchmark**. Rotation and typography/layout variation do not establish performance on rasterized low-DPI scans, blur, noise, scan compression, handwriting, or broad unseen form families.
+
+See [`docs/EVALUATION.md`](docs/EVALUATION.md) for scenario definitions, metric methodology, limitations, and the next reliability steps.
 
 ## Azure F0 package batching
 
-The first end-to-end PDF benchmark exposed a provider constraint: the configured Azure F0 resource analyzes only a small number of PDF pages per provider request. Assay now keeps the **8-page product experience** by using a provider-aware batching layer rather than silently dropping later pages.
+The first end-to-end PDF benchmark exposed a provider constraint: the configured Azure F0 resource analyzes only a small number of PDF pages per provider request. Assay keeps the **8-page product experience** by using a provider-aware batching layer rather than silently dropping later pages.
 
 ```text
 8-page package
@@ -126,7 +147,7 @@ The first end-to-end PDF benchmark exposed a provider constraint: the configured
         one combined Assay package result
 ```
 
-The defaults use sequential two-page chunks with configurable throttling. Server-only overrides are documented in `.env.example` so a higher Azure tier can increase pages per request without changing the product contract.
+The portfolio configuration stays on the Azure **F0** tier and uses sequential two-page chunks with configurable throttling. If a free-tier provider limit is reached, the portfolio workflow should stop/defer rather than depend on a paid upgrade.
 
 ## Architecture
 
@@ -151,7 +172,7 @@ package context + source evidence
         |
         v
 Deterministic QC controls
-versioned profile context + fail-safe routing
+versioned profile context + required inventory + fail-safe routing
         |
         v
 Human reviewer
@@ -168,12 +189,14 @@ Audit + evaluation context
 - `api/lib/pdfBatchAnalysis.js` — provider-aware page splitting, throttling, recombination, and page rebasing
 - `api/lib/normalizeMortgagePackage.js` — package segmentation and context normalization
 - `api/lib/documentSpecificQc.js` — document-specific evidence extraction
-- `src/domain/packageQcCase.js` — deterministic package/document QC case generation
+- `api/lib/pdfStressFixtures.js` — reproducible digital stress fixtures
+- `src/domain/packageQcCase.js` — deterministic package/document QC case generation, including profile-driven inventory checks
 - `src/PdfEvidenceViewer.jsx` — source-page evidence review
 - `src/domain/mortgageQc.js` — recommendation, blocker, override, and audit semantics
 - `src/domain/goldenEvaluation.js` — decision-layer evaluator
 - `src/domain/pdfEvaluation.js` — PDF classification/extraction/evidence/recommendation evaluator
 - `src/data/pdfEvaluationBaseline.js` — recorded initial PDF/Azure baseline
+- `src/data/pdfStressBaseline.js` — recorded digital PDF stress baseline
 
 ## Safety and decision semantics
 
@@ -181,7 +204,9 @@ Audit + evaluation context
 - Funding-critical **Needs Review** findings block a ready disposition.
 - Overrides require an authorized actor, structured reason, and source evidence.
 - Configured critical rules may require second approval.
-- Unknown or low-confidence package context remains explicit instead of receiving an invented document type or rule profile.
+- A confidently absent document becomes an exception **only when the pinned fictional profile and intake channel explicitly configure that document as required**.
+- If unknown or low-confidence pages could contain a configured required document, inventory completeness routes to **Needs Review** instead of a deterministic missing-document failure.
+- Unresolved profiles do not receive invented required-document assumptions.
 - Signature and notary indicators assist evidence location; they do not constitute legal validation.
 - Evidence evaluation does not award provenance credit to a manufactured page number without meaningful source evidence.
 
@@ -197,27 +222,28 @@ Assay is deliberately narrow and transparent about what is not production-ready:
 
 - package analysis is limited to the first 8 pages and 4 MB PDFs
 - document classification/extraction use heuristic normalization over Azure layout output rather than a production-trained mortgage classifier/schema suite
-- candidate TX/CA/FL profiles and mortgage rules are fictional portfolio data, not legal requirements
+- candidate TX/CA/FL profiles, required-document inventories, and mortgage rules are fictional portfolio data, not legal requirements
+- only the fictional **QC-only** sample profiles currently configure required-document inventories; RON/mobile-notary requirements are not implemented
 - live case/PDF retention is browser-session based rather than durable workflow storage
 - application rate limiting is process-local and provider F0 throttling can still affect burst latency
 - there is no production identity, tenancy, customer-data governance, or enterprise retention model
-- the PDF benchmark is five controlled digital fixtures, not a generalization estimate
+- the clean PDF benchmark is five controlled digital fixtures and stress v1 is three controlled digital fixtures; neither is a generalization estimate
+- true raster/scan degradation remains unmeasured
 - cost telemetry is not yet captured
 
 ## Next evaluation milestone
 
-The next benchmark should make the input harder rather than adding more clean PDFs:
+The next benchmark should move from digital-PDF manipulation to **true raster / scan stress**, while staying within free-tier limits:
 
-- rasterized scans
-- controlled blur and lower resolution
-- rotated/skewed pages
-- poor contrast and compression artifacts
+- rasterized low-resolution pages
+- controlled blur and image noise
+- image-level skew and rotation
+- scan compression artifacts and poor contrast
 - varied/unseen document layouts
 - ambiguous borrower/name/date evidence
-- duplicated and missing pages
-- broader jurisdiction/profile context
-- repeated runs to characterize provider throttling separately from normal latency
-- processing-cost instrumentation before publishing cost metrics
+- missing/duplicated pages under classification uncertainty
+- repeated runs only when useful to separate provider throttling from normal latency
+- cost instrumentation only if it can be implemented without creating billable usage
 
 See [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) for delivered status and the forward roadmap.
 
