@@ -1,4 +1,5 @@
-import { isAzureConfigured, startDocumentAnalysis } from "./lib/azureDocumentIntelligence.js";
+import { isAzureConfigured } from "./lib/azureDocumentIntelligence.js";
+import { startPdfBatchAnalysis } from "./lib/pdfBatchAnalysis.js";
 import { checkRateLimit, getClientIp, validatePdfPayload } from "./lib/requestGuards.js";
 
 function send(response, status, payload) {
@@ -37,16 +38,19 @@ export default async function handler(request, response) {
   }
 
   try {
-    const operation = await startDocumentAnalysis({ base64Source, pages: "1-8" });
+    const batch = await startPdfBatchAnalysis({ base64Source });
     return send(response, 202, {
-      analysisId: operation.resultId,
+      analysisId: batch.analysisId,
       status: "running",
       fileName,
       decodedBytes: validation.decodedBytes,
       provider: "Azure AI Document Intelligence",
-      modelId: operation.modelId,
-      apiVersion: operation.apiVersion,
-      pageScope: "1-8",
+      modelId: batch.modelId,
+      apiVersion: batch.apiVersion,
+      pageScope: `1-${batch.analyzedPageCount}`,
+      sourcePageCount: batch.sourcePageCount,
+      analysisChunks: batch.chunkCount,
+      pagesPerRequest: batch.operations.length ? batch.operations[0].endPage - batch.operations[0].startPage + 1 : 0,
       rateLimitRemaining: rateLimit.remaining,
     });
   } catch (error) {
