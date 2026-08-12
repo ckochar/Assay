@@ -143,8 +143,8 @@ The initial PDF baseline is deliberately controlled. It uses digital-text synthe
 
 - scanned-image documents
 - handwriting
-- skewed or rotated pages
-- blur, low resolution, compression artifacts, or poor contrast
+- image-level skew/rotation
+- blur, low resolution, compression artifacts, or poor raster contrast
 - broad unseen lender/form layouts
 - production traffic distributions
 - real borrower/customer data
@@ -154,7 +154,101 @@ The 100% results should be read as: **the current pipeline preserved the expecte
 
 ---
 
-# 3. Provider-limit discovery and architecture response
+# 3. Digital PDF stress set v1
+
+## Scope
+
+The first stress set intentionally changed the input shape instead of adding more clean PDFs. It contains **three additional synthetic digital packages**, eight pages each, for **24 published benchmark pages**.
+
+The three stresses are:
+
+1. **STRESS-001 · Mixed page rotation** — selected pages carry 90° or 270° PDF rotation metadata.
+2. **STRESS-002 · Low-contrast compact layout** — smaller, lighter text arranged in a denser two-column layout.
+3. **STRESS-003 · Duplicated closing / missing notary** — page 8 is another Closing Disclosure, so the configured Notary Acknowledgment is confidently absent from the classified package.
+
+These are **digital-document stresses**. They are not rasterized scanned-image tests.
+
+## Final published results
+
+| Case | Stress | Expected recommendation | Measured recommendation | Latency |
+|---|---|---|---|---:|
+| STRESS-001 | Mixed page rotation | Needs Review | Needs Review | 12.32 s |
+| STRESS-002 | Low-contrast compact layout | Needs Review | Needs Review | 12.36 s |
+| STRESS-003 | Duplicated closing / missing configured notary | Exception Identified | Exception Identified | 12.52 s |
+
+Aggregate result:
+
+- **24 / 24** expected page classifications
+- **30 / 30** labeled field values
+- **25 / 25** expected evidence source pages with evidence present
+- **3 / 3** recommendation matches
+- **0** false-ready packages
+- **0** false exceptions
+- **0** missed deterministic exceptions
+- **P50 latency: 12.36 s**
+- **P95 latency: 12.52 s**
+
+## Benchmark-driven product change
+
+STRESS-003 exposed a useful distinction between **document intelligence** and **policy/rule completeness**.
+
+In the initial diagnostic run:
+
+- Azure correctly classified page 8 as another Closing Disclosure.
+- The package inventory correctly omitted `Notary Acknowledgment`.
+- Both labeled notary date fields were correctly absent.
+- The upstream classification/extraction/evidence layers therefore behaved as expected.
+- The existing Assay rule set, however, had no explicit profile-driven required-document control, so the package did not become a deterministic missing-document exception.
+
+That diagnostic run is **not counted as the final published STRESS-003 benchmark result**. It was used to find the product gap.
+
+Assay then added `PKG-DOC-REQ-001` and moved the fictional QC-only sample profile versions forward:
+
+- TX: `MORTGAGE-QC-TX` **2.2.0**
+- CA: `MORTGAGE-QC-CA` **1.5.0**
+- FL: `MORTGAGE-QC-FL` **3.1.0**
+
+The rule is intentionally profile/channel driven rather than a global mortgage assumption:
+
+- if the pinned fictional profile/channel explicitly configures a document as required and the confidently classified inventory omits it → **Fail**
+- if unknown/low-confidence pages could contain that document → **Needs Review**
+- if the profile is unresolved or no channel requirement exists → Assay does **not** invent a required-document assumption
+
+The final STRESS-003 rerun under `MORTGAGE-QC-TX v2.2.0` produced:
+
+```text
+PKG-DOC-REQ-001 = Fail
+Missing: Notary Acknowledgment · detected 6 of 7
+Recommendation = Exception Identified
+```
+
+That final rerun preserved 8/8 classification, 10/10 labeled field extraction, 7/7 expected evidence localization, and zero false-ready behavior.
+
+The required-document data and sample rule profiles are fictional portfolio configuration. They are not legal, investor, lender, or regulatory requirements.
+
+## STRESS-002 evidence-quality observation
+
+The compact-layout case still produced the expected borrower field set, but one borrower evidence excerpt was truncated relative to the clean fixture. The borrower result remained correct because the package contained redundant explicit borrower lines.
+
+That observation is not counted as an extraction miss, but it is a useful reminder that **field correctness and evidence presentation quality are separate dimensions**. A future stress set can score excerpt coverage/quality separately from source-page correctness.
+
+## Boundary
+
+Stress v1 does **not** establish performance on:
+
+- rasterized low-DPI scans
+- handwriting
+- image blur or noise
+- scan compression artifacts
+- image-level skew
+- severe raster contrast loss
+- broad unseen form families
+
+The result should be read as: **the current pipeline preserved the expected evidence and routing on three controlled digital stress fixtures, and one fixture directly caused a versioned product-rule improvement**.
+
+---
+
+# 4. Provider-limit discovery and architecture response
 
 The first end-to-end PDF run revealed that the configured Azure F0 resource processes at most two PDF pages per analysis request. Assay therefore added a provider-aware batching layer instead of silently analyzing only the first two pages or requiring a paid tier for the portfolio demo.
 
@@ -168,24 +262,25 @@ The batching layer:
 6. restores original package page numbers
 7. sends the combined result through the existing normalization and QC path
 
-Server-only configuration is documented in `.env.example`.
+The portfolio configuration remains on **F0**. If the free provider allowance or rate limit is reached, the intended portfolio behavior is to stop/defer additional benchmark work rather than require a paid upgrade.
 
 ---
 
-# 4. Next evaluation maturity
+# 5. Next evaluation maturity
 
-The next stress set should intentionally make the document-intelligence problem harder rather than adding more clean digital fixtures. Priorities are:
+The next stress set should move from generated digital-PDF manipulation to **true raster / scan stress**, while keeping the portfolio inside free-tier limits. Priorities are:
 
-- controlled blur and lower resolution
-- rotated/skewed pages
-- rasterized scans
+- rasterized low-resolution pages
+- controlled blur and image noise
+- image-level skew/rotation
+- scan compression artifacts and poor raster contrast
 - varied/unseen layouts for each target document type
 - OCR spacing and punctuation variation
 - ambiguous borrower/name/date evidence
-- missing pages and duplicated pages
-- broader jurisdiction/profile context
-- repeated runs to separate provider throttling from normal latency
-- cost telemetry before publishing cost-per-package
+- missing/duplicated pages under classification uncertainty
+- evidence excerpt/region quality beyond source-page correctness
+- repeated runs only where useful to distinguish provider throttling from normal latency
+- cost telemetry only if it can be added without introducing billable usage
 
 As the set expands, report precision/recall by document type and field, evidence-region quality where reliable labels exist, unable-to-process rate, and performance slices by degradation type.
 
@@ -206,6 +301,13 @@ PDF-level evaluation:
 - `src/data/pdfEvaluationBaseline.js`
 - `test/pdfEvaluation.test.js`
 - `test/pdfEvaluationBaseline.test.js`
+
+Digital stress evaluation:
+
+- `api/lib/pdfStressFixtures.js`
+- `src/data/pdfStressBaseline.js`
+- `test/pdfStressFixtures.test.js`
+- `test/pdfStressBaseline.test.js`
 
 Provider batching:
 
