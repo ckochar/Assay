@@ -53,6 +53,35 @@ test("creates a package QC case with pinned profile and evidence-backed foundati
   assert.equal(review.sourceKind, "package");
 });
 
+test("adds document-specific controls while keeping signature and notary evidence human-reviewed", () => {
+  const result = baseResult();
+  result.documentQc = {
+    noteExecutionDate: { documentType: "Promissory Note", value: "2026-08-09", evidence: { page: 1, excerpt: "Date: August 9, 2026" } },
+    noteSignatureIndicators: {
+      documentType: "Promissory Note",
+      indicators: [
+        { borrower: "Maya Patel", indicatorDetected: true, evidence: { page: 2, excerpt: "Maya Patel" } },
+        { borrower: "Rohan Patel", indicatorDetected: true, evidence: { page: 2, excerpt: "Rohan Patel" } },
+      ],
+    },
+    rightToCancel: { documentType: "Notice of Right to Cancel", titleDetected: true, cancelLanguageDetected: true, evidence: { page: 5, excerpt: "You may cancel this transaction" } },
+    notaryAcknowledgment: {
+      documentType: "Notary Acknowledgment",
+      fields: { venue: true, acknowledgment: true, notaryIndicator: true, commissionExpiration: true },
+      evidence: { page: 8, excerpt: "Acknowledged before me on August 9, 2026." },
+    },
+  };
+
+  const review = createPackageQcReview({ result, now: new Date("2026-08-11T20:30:00-04:00") });
+  assert.equal(review.rules.length, 9);
+  assert.equal(review.rules.find((rule) => rule.id === "NOTE-DATE-001").status, "Pass");
+  assert.equal(review.rules.find((rule) => rule.id === "RTC-CONTENT-001").status, "Pass");
+  assert.equal(review.rules.find((rule) => rule.id === "NOTE-SIG-001").status, "Needs Review");
+  assert.equal(review.rules.find((rule) => rule.id === "NOT-FIELDS-001").status, "Needs Review");
+  assert.equal(review.rules.find((rule) => rule.id === "NOTE-SIG-001").confidence.evidenceComplete, false);
+  assert.equal(review.rules.find((rule) => rule.id === "NOT-FIELDS-001").confidence.evidenceComplete, false);
+});
+
 test("keeps unresolved package identity and profile context as blocking review findings", () => {
   const result = baseResult();
   result.context.loanNumber = null;
