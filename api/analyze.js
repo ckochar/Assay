@@ -1,5 +1,5 @@
-import { isAzureConfigured, startDocumentAnalysis } from "./lib/azureDocumentIntelligence.js";
-import { checkRateLimit, getClientIp, validatePdfPayload } from "./lib/requestGuards.js";
+import { isAzureConfigured, startDocumentAnalysis } from "../server/lib/azureDocumentIntelligence.js";
+import { checkRateLimit, getClientIp, validatePdfPayload } from "../server/lib/requestGuards.js";
 
 function send(response, status, payload) {
   response.status(status).json(payload);
