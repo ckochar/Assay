@@ -18,18 +18,13 @@ async function listJavaScriptFiles(directory) {
   return files.sort();
 }
 
-test("Vercel api directory stays below the Hobby function ceiling", async () => {
+test("Vercel api directory contains only the four HTTP entrypoints", async () => {
   const files = await listJavaScriptFiles(apiDir);
-  assert.equal(files.length, 7);
-  assert.deepEqual(files.filter((file) => !file.startsWith("lib/")), [
+  assert.deepEqual(files, [
     "analysis.js",
     "analyze.js",
     "package-analysis.js",
     "package-analyze.js",
   ]);
-  assert.equal(files.includes("lib/azureDocumentIntelligence.js"), false);
-  assert.equal(files.includes("lib/pdfBatchAnalysis.js"), false);
-  assert.equal(files.includes("lib/requestGuards.js"), false);
-  assert.equal(files.includes("lib/pdfEvaluationFixtures.js"), false);
-  assert.equal(files.includes("lib/pdfStressFixtures.js"), false);
+  assert.ok(files.length < 12, "Keep free-tier headroom below the historical 12-function ceiling");
 });
