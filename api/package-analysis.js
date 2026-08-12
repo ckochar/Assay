@@ -1,7 +1,7 @@
 import { isAzureConfigured } from "../server/lib/azureDocumentIntelligence.js";
 import { getPdfBatchAnalysis } from "../server/lib/pdfBatchAnalysis.js";
-import { normalizeMortgagePackageAnalysis } from "./lib/normalizeMortgagePackage.js";
-import { extractDocumentSpecificQc } from "./lib/documentSpecificQc.js";
+import { normalizeMortgagePackageAnalysis } from "../server/lib/normalizeMortgagePackage.js";
+import { extractDocumentSpecificQc } from "../server/lib/documentSpecificQc.js";
 
 function send(response, status, payload) {
   response.status(status).json(payload);
