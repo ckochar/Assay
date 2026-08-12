@@ -33,7 +33,7 @@ test("raster fixtures generate eight-page image-only PDFs with no text layer", a
       const text = await page.getTextContent();
       assert.equal(text.items.length, 0, `${scenario.id} page ${pageNumber} unexpectedly contains a PDF text layer`);
     }
-    await pdf.destroy();
+    if (typeof loadingTask.destroy === "function") await loadingTask.destroy();
   }
 });
 
