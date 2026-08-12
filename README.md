@@ -8,43 +8,40 @@ Assay is an **AI-assisted post-execution mortgage document QC product** that tur
 
 > Assay is an independent portfolio prototype built with synthetic/sample data. It is not legal, lending, compliance, notarization, or underwriting software and should not be used with real customer or borrower information.
 
-## What problem Assay addresses
-
-Post-execution mortgage QC often requires an analyst to move page by page through an executed package, determine what documents are present, locate relevant execution evidence, compare information across documents, identify exceptions, and record a defensible disposition.
-
-Assay is designed as the **downstream QC layer** after document execution. A package may arrive from a remote-online-notarization flow, a mobile-notary flow, or directly to a QC team; Assay's job is to understand the resulting package and help an analyst review it consistently.
-
 ## Product thesis
 
 **AI extracts evidence. Deterministic controls evaluate it. Humans remain accountable.**
 
-Assay is built around six principles:
+Post-execution mortgage QC often requires an analyst to move page by page through an executed package, determine what documents are present, locate execution evidence, compare information across documents, identify exceptions, and record a defensible disposition. Assay is designed as the downstream QC layer after document execution.
 
-1. **Evidence first** — findings should point back to source document, page, excerpt, and available page geometry.
+The product is built around six principles:
+
+1. **Evidence first** — findings point back to source document, page, excerpt, and available geometry.
 2. **Deterministic decisioning** — OCR/document AI supplies evidence; transparent code evaluates business controls.
-3. **Fail-safe routing** — missing, conflicting, low-confidence, or legally meaningful evidence routes to human review instead of silently becoming a ready decision.
-4. **Version traceability** — evaluations pin the rule profile and extractor context used at review time.
+3. **Fail-safe routing** — missing, conflicting, low-confidence, or legally meaningful evidence routes to human review instead of silently becoming ready.
+4. **Version traceability** — evaluations pin rule-profile and extractor context.
 5. **Human accountability** — authorized reviewers record corrections, overrides, returns, and final dispositions.
-6. **Measured reliability** — release decisions use labeled evaluation cases, with **zero false-ready packages** as the primary safety gate.
+6. **Measured reliability** — decision and document-intelligence quality are evaluated separately, with **zero false-ready packages** as the primary safety gate.
 
 ## What is live today
 
-### 1. Package Intelligence
+### Package Intelligence
 
-`/package` accepts a synthetic/sample combined mortgage PDF and runs the first **8 pages** through Azure AI Document Intelligence using `prebuilt-layout`.
+`/package` accepts a synthetic/sample combined mortgage PDF and analyzes the first **8 pages** with Azure AI Document Intelligence `prebuilt-layout`.
 
-The current prototype:
+The current pipeline:
 
-- validates PDF type and decoded payload size (up to 4 MB)
-- sends the package to Azure for OCR/layout analysis
+- validates PDF type and decoded payload size up to 4 MB
+- splits package pages into provider-sized Azure requests when required
+- runs OCR/layout analysis and restores original package page numbers after recombination
 - classifies pages into mortgage document types
 - groups consecutive pages into document segments
 - builds a package inventory
 - extracts loan number, borrower, jurisdiction, OCR-quality, and page-linked evidence
-- resolves a candidate TX/CA/FL sample rule profile when package context supports it
+- resolves a candidate TX/CA/FL sample rule profile only when supported by package context
 - leaves unknown, low-confidence, or unresolved context explicit for human review
 
-Representative document types include:
+Representative document types:
 
 - Promissory Note
 - Mortgage or Deed of Trust
@@ -54,82 +51,103 @@ Representative document types include:
 - Signature/Name Affidavit
 - Notary Acknowledgment
 
-### 2. Document-specific QC
+### Document-specific QC
 
-Assay currently derives evidence-backed signals and deterministic review controls for areas such as:
+Assay derives evidence-backed signals and deterministic controls for areas such as:
 
 - Promissory Note execution date
 - borrower signature **text/location indicators**
 - Closing Disclosure closing date
 - Note / Closing Disclosure date consistency
-- Right-to-Cancel title and cancellation-language indicators
-- Right-to-Cancel transaction/deadline chronology
-- notary venue and acknowledgment indicators
-- notary acknowledgment and commission-expiration chronology
+- Right-to-Cancel title, cancellation language, and date chronology
+- notary venue, acknowledgment, and commission-expiration chronology
 - cross-document borrower-name consistency
 - package classification, loan identity, profile context, and OCR quality
 
-Signature or notary **legal validity is never inferred from OCR text alone**. Execution evidence that requires visual or legal judgment remains a human-review item.
+Signature or notary **legal validity is never inferred from OCR text alone**. Execution evidence requiring visual or legal judgment remains a human-review item.
 
-### 3. Evidence-backed reviewer workspace
+### Evidence-backed reviewer
 
-Live package analysis can create a `QC-PKG-*` case and continue into the same reviewer experience used by the preloaded scenarios.
+Live package analysis can create a `QC-PKG-*` case and continue into the same reviewer workspace used by the preloaded scenarios.
 
-The workspace supports:
-
-- Pass / Fail / Needs Review findings
-- source-document and page evidence
-- PDF.js source viewer
-- page-linked Azure evidence polygons where available
-- funding blockers for unresolved critical findings
-- return-for-correction actions
-- structured overrides with authorization, reason, and evidence requirements
-- optional second approval for configured critical rules
-- final disposition
-- audit history
-- pinned evaluation/extractor/profile context
-
-### 4. Sample scenarios
-
-The QC Dashboard includes three preloaded mortgage scenarios that demonstrate:
-
-- a clean review path
-- a deterministic exception
-- a low-confidence / human-review path
-
-These are sample-data experiences and are separate from the live Azure package-analysis path.
+The workspace supports Pass / Fail / Needs Review findings, source-page evidence, a PDF.js viewer, Azure evidence polygons where available, funding blockers, return-for-correction, structured overrides, optional second approval, final disposition, audit history, and pinned evaluation context.
 
 ## Reliability evaluation
 
-Assay includes a visible `/evaluation` screen and a build-gated labeled **decision-layer golden set**.
+Assay exposes two deliberately separate benchmarks on `/evaluation`.
 
-Current production baseline:
+### 1. Decision-layer golden set
 
-- **10 / 10** expected recommendation matches
+This benchmark starts from labeled structured evidence and isolates deterministic QC/recommendation behavior.
+
+Current result:
+
+- **10 / 10** recommendation matches
 - **0** false-ready packages
 - **0** false exceptions
 - **0** missed deterministic exceptions
-- **30 / 30** automated tests passing in the production build
 
-The build fails if the current zero-false-ready decision-layer release gate regresses.
+### 2. Initial PDF / Azure baseline
 
-This benchmark intentionally measures **deterministic decision behavior over labeled structured evidence**. It does **not yet measure** Azure OCR accuracy, document-classification accuracy, field-extraction accuracy, evidence-localization accuracy, latency, or processing cost on unseen PDFs. See [`docs/EVALUATION.md`](docs/EVALUATION.md).
+Five version-controlled synthetic **digital-text** mortgage PDFs, eight pages each, were run through the actual Azure → Assay extraction → evidence → QC path.
+
+Measured result across **40 pages**:
+
+- **40 / 40** expected page classifications
+- **50 / 50** labeled field values
+- **44 / 44** expected evidence source pages with evidence present
+- **5 / 5** package recommendation matches
+- **0** false-ready packages
+- **0** false exceptions
+- **0** missed deterministic exceptions
+- **P50 latency: 12.36 s**
+- **P95 latency: 12.71 s**
+
+These 100% values are an **initial controlled baseline, not a production accuracy claim**. The fixtures are clean generated digital PDFs; they do not establish performance on scans, handwriting, blur, skew, poor contrast, or broad unseen lender layouts. Processing cost was not instrumented, so Assay does not publish a fabricated cost-per-package number.
+
+See [`docs/EVALUATION.md`](docs/EVALUATION.md) for scenario definitions, metric methodology, limitations, and next stress-set plans.
+
+## Azure F0 package batching
+
+The first end-to-end PDF benchmark exposed a provider constraint: the configured Azure F0 resource analyzes only a small number of PDF pages per provider request. Assay now keeps the **8-page product experience** by using a provider-aware batching layer rather than silently dropping later pages.
+
+```text
+8-page package
+   |
+   +--> pages 1-2 -> Azure
+   +--> pages 3-4 -> Azure
+   +--> pages 5-6 -> Azure
+   +--> pages 7-8 -> Azure
+                    |
+                    v
+       rebase to original page numbers
+                    |
+                    v
+        one combined Assay package result
+```
+
+The defaults use sequential two-page chunks with configurable throttling. Server-only overrides are documented in `.env.example` so a higher Azure tier can increase pages per request without changing the product contract.
 
 ## Architecture
 
 ```text
-Sample / synthetic PDF
+Synthetic/sample PDF
         |
         v
-Vercel package-analysis API
+Vercel package API
+validation + provider-aware PDF batching
         |
         v
 Azure AI Document Intelligence
 OCR + layout + page geometry
         |
         v
-Assay normalization
-package segmentation + context + document-specific evidence
+Assay batch recombination
+restore original package page numbers
+        |
+        v
+Normalization + document-specific extraction
+package context + source evidence
         |
         v
 Deterministic QC controls
@@ -145,37 +163,31 @@ Audit + evaluation context
 
 ### Key implementation components
 
-- `api/package-analyze.js` / `api/package-analysis.js` — asynchronous live package processing
+- `api/package-analyze.js` / `api/package-analysis.js` — asynchronous package processing
 - `api/lib/azureDocumentIntelligence.js` — Azure provider integration
+- `api/lib/pdfBatchAnalysis.js` — provider-aware page splitting, throttling, recombination, and page rebasing
 - `api/lib/normalizeMortgagePackage.js` — package segmentation and context normalization
 - `api/lib/documentSpecificQc.js` — document-specific evidence extraction
-- `src/domain/packageQcCase.js` — deterministic package and document-specific QC case generation
+- `src/domain/packageQcCase.js` — deterministic package/document QC case generation
 - `src/PdfEvidenceViewer.jsx` — source-page evidence review
-- `src/domain/mortgageQc.js` — core recommendation, blocker, override, and audit semantics
-- `src/domain/goldenEvaluation.js` — decision-layer evaluation runner
+- `src/domain/mortgageQc.js` — recommendation, blocker, override, and audit semantics
+- `src/domain/goldenEvaluation.js` — decision-layer evaluator
+- `src/domain/pdfEvaluation.js` — PDF classification/extraction/evidence/recommendation evaluator
+- `src/data/pdfEvaluationBaseline.js` — recorded initial PDF/Azure baseline
 
 ## Safety and decision semantics
 
-The current product enforces these principles:
-
-- any unresolved **Fail** creates an exception recommendation unless a valid authorized exception is recorded
-- funding-critical **Needs Review** findings block a ready disposition
-- overrides require an authorized actor, structured reason, and source evidence
-- configured critical rules may require second approval
-- a recommendation is not silently converted into a funding-ready disposition
-- unknown or low-confidence package context stays visible rather than receiving an invented document type or rule profile
-- signature and notary indicators assist evidence location; they do not constitute legal validation
+- Any unresolved **Fail** creates an exception recommendation unless a valid authorized exception is recorded.
+- Funding-critical **Needs Review** findings block a ready disposition.
+- Overrides require an authorized actor, structured reason, and source evidence.
+- Configured critical rules may require second approval.
+- Unknown or low-confidence package context remains explicit instead of receiving an invented document type or rule profile.
+- Signature and notary indicators assist evidence location; they do not constitute legal validation.
+- Evidence evaluation does not award provenance credit to a manufactured page number without meaningful source evidence.
 
 ## Confidence model
 
-Assay avoids one generic "AI confidence" score for the business decision. The data model separates signals such as:
-
-- document-classification confidence
-- extraction confidence
-- OCR quality
-- evidence completeness
-- review trigger
-- deterministic rule result
+Assay does not use one generic “AI confidence” score for a business decision. The data model separates document-classification confidence, extraction confidence, OCR quality, evidence completeness, review triggers, and deterministic rule results.
 
 Confidence is a **routing input**. Deterministic controls produce the recommendation.
 
@@ -184,39 +196,39 @@ Confidence is a **routing input**. Deterministic controls produce the recommenda
 Assay is deliberately narrow and transparent about what is not production-ready:
 
 - package analysis is limited to the first 8 pages and 4 MB PDFs
-- current document classification and extraction use heuristic normalization over Azure layout output rather than a production-trained mortgage classifier/schema suite
+- document classification/extraction use heuristic normalization over Azure layout output rather than a production-trained mortgage classifier/schema suite
 - candidate TX/CA/FL profiles and mortgage rules are fictional portfolio data, not legal requirements
 - live case/PDF retention is browser-session based rather than durable workflow storage
-- rate limiting is process-local and best-effort, not a distributed production control
+- application rate limiting is process-local and provider F0 throttling can still affect burst latency
 - there is no production identity, tenancy, customer-data governance, or enterprise retention model
-- the current golden set is a decision-layer benchmark, not an end-to-end OCR benchmark
+- the PDF benchmark is five controlled digital fixtures, not a generalization estimate
+- cost telemetry is not yet captured
 
-## Next milestone: PDF-level evaluation
+## Next evaluation milestone
 
-The next phase is a labeled synthetic PDF benchmark run through the **actual Azure pipeline**. It will measure extraction quality separately from decision quality, including:
+The next benchmark should make the input harder rather than adding more clean PDFs:
 
-- page/document classification accuracy
-- field extraction precision / recall / F1
-- evidence page and region localization
-- false-ready and false-exception behavior after extraction
-- review-routing behavior
-- P50 / P95 processing latency
-- Azure processing cost per package
+- rasterized scans
+- controlled blur and lower resolution
+- rotated/skewed pages
+- poor contrast and compression artifacts
+- varied/unseen document layouts
+- ambiguous borrower/name/date evidence
+- duplicated and missing pages
+- broader jurisdiction/profile context
+- repeated runs to characterize provider throttling separately from normal latency
+- processing-cost instrumentation before publishing cost metrics
 
-The current decision-layer benchmark will remain separate so OCR errors and rule-engine errors are diagnosable rather than blended into one score.
-
-See [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) for completed work and the forward roadmap.
+See [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) for delivered status and the forward roadmap.
 
 ## Technology
-
-Current production prototype:
 
 - React 18
 - Vite
 - Vercel Functions
 - Azure AI Document Intelligence (`prebuilt-layout`, API `2024-11-30`)
 - PDF.js
-- `pdf-lib` for generated sample PDFs
+- `pdf-lib`
 - Node.js built-in test runner
 
 Every Vercel build runs:
@@ -234,19 +246,7 @@ npm install
 npm run dev
 ```
 
-For live Azure analysis, configure the server-side environment variables documented in `.env.example`. Do not commit credentials.
-
-## Competitive position
-
-Assay does not attempt to reproduce an entire eClosing, LOS, notarization, or mortgage operations suite. The product focuses on a narrower post-execution QC problem and differentiates through:
-
-- transparent deterministic controls
-- versioned policy/profile context
-- page-level evidence provenance
-- explicit human-review routing
-- auditability and override controls
-- visible reliability evaluation
-- separation of extraction quality from decision quality
+For live Azure analysis, configure the server-side environment variables in `.env.example`. Never commit credentials.
 
 ## Data and IP notice
 
