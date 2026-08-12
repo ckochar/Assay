@@ -8,7 +8,7 @@ import {
   getPdfBatchAnalysis,
   splitPdfBase64,
   startPdfBatchAnalysis,
-} from "../api/lib/pdfBatchAnalysis.js";
+} from "../server/lib/pdfBatchAnalysis.js";
 
 async function createPdf(pageCount) {
   const pdf = await PDFDocument.create();
