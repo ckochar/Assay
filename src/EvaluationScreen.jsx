@@ -1,6 +1,11 @@
 import React from "react";
 import { GOLDEN_EVALUATION_CASES } from "./data/goldenEvaluationCases.js";
 import { evaluateGoldenCases } from "./domain/goldenEvaluation.js";
+import {
+  PDF_EVALUATION_BASELINE_META,
+  PDF_EVALUATION_BASELINE_ROWS,
+  PDF_EVALUATION_BASELINE_SUMMARY,
+} from "./data/pdfEvaluationBaseline.js";
 
 const C = {
   bg: "#f5f7f6", panel: "#ffffff", ink: "#14211d", sub: "#60706a", line: "#dfe6e2",
@@ -14,6 +19,10 @@ function pct(value) {
   return `${Math.round(value * 100)}%`;
 }
 
+function seconds(ms) {
+  return `${(ms / 1000).toFixed(2)}s`;
+}
+
 function toneFor(value) {
   if (value === "Ready for Review") return { color: C.teal, background: C.tealSoft };
   if (value === "Exception Identified") return { color: C.fail, background: C.failSoft };
@@ -24,16 +33,36 @@ function Pill({ children, tone }) {
   return <span style={{ ...mono, ...tone, display: "inline-flex", borderRadius: 999, padding: "4px 7px", fontSize: 9.5, fontWeight: 800 }}>{children}</span>;
 }
 
+function MetricGrid({ cards }) {
+  return <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 9, marginTop: 14 }}>
+    {cards.map(([value, label, emphasize = false]) => <div key={label} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14 }}>
+      <div style={{ fontSize: 23, fontWeight: 850, color: emphasize ? C.teal : C.ink }}>{value}</div>
+      <div style={{ ...mono, color: C.sub, fontSize: 9.5, marginTop: 5 }}>{label.toUpperCase()}</div>
+    </div>)}
+  </section>;
+}
+
 export default function EvaluationScreen() {
   const evaluation = evaluateGoldenCases(GOLDEN_EVALUATION_CASES);
   const { metrics, rows } = evaluation;
-  const cards = [
+  const decisionCards = [
     [metrics.totalCases, "Labeled cases"],
     [pct(metrics.recommendationAccuracy), "Recommendation accuracy"],
-    [metrics.falseReady, "False-ready packages"],
+    [metrics.falseReady, "False-ready packages", metrics.falseReady === 0],
     [metrics.falseException, "False exceptions"],
     [metrics.missedException, "Missed exceptions"],
     [pct(metrics.automationRate), "Ready recommendation rate"],
+  ];
+  const pdf = PDF_EVALUATION_BASELINE_SUMMARY;
+  const pdfCards = [
+    [`${pdf.packages} / ${pdf.pagesAnalyzed}`, "Packages / pages"],
+    [pct(pdf.classificationAccuracy), "Page classification", pdf.classificationAccuracy === 1],
+    [pct(pdf.extractionAccuracy), "Labeled field extraction", pdf.extractionAccuracy === 1],
+    [pct(pdf.evidenceSourcePageAccuracy), "Evidence source page", pdf.evidenceSourcePageAccuracy === 1],
+    [`${pdf.recommendationCorrect}/${pdf.packages}`, "Recommendation match"],
+    [pdf.falseReady, "False-ready packages", pdf.falseReady === 0],
+    [seconds(pdf.p50LatencyMs), "P50 latency"],
+    [seconds(pdf.p95LatencyMs), "P95 latency"],
   ];
 
   return <main style={{ ...display, minHeight: "100vh", background: C.bg, color: C.ink }}>
@@ -52,12 +81,7 @@ export default function EvaluationScreen() {
         </div>
       </section>
 
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(165px,1fr))", gap: 9, marginTop: 14 }}>
-        {cards.map(([value, label]) => <div key={label} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14 }}>
-          <div style={{ fontSize: 23, fontWeight: 850, color: label === "False-ready packages" && value === 0 ? C.teal : C.ink }}>{value}</div>
-          <div style={{ ...mono, color: C.sub, fontSize: 9.5, marginTop: 5 }}>{label.toUpperCase()}</div>
-        </div>)}
-      </section>
+      <MetricGrid cards={decisionCards} />
 
       <section style={{ marginTop: 14, display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 14, alignItems: "start" }}>
         <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 11, overflow: "hidden" }}>
@@ -88,14 +112,68 @@ export default function EvaluationScreen() {
             Package and document-specific rules, human-review routing, deterministic contradictions, and final recommendation behavior.
           </div>
           <div style={{ background: C.reviewSoft, color: C.review, borderRadius: 10, padding: 14, fontSize: 11, lineHeight: 1.55 }}>
-            <div style={{ ...mono, fontSize: 9, fontWeight: 800 }}>WHAT THIS DOES NOT MEASURE</div>
-            <b style={{ display: "block", margin: "5px 0" }}>OCR or extraction accuracy</b>
-            These 10 cases use labeled structured evidence. They do not prove Azure OCR, document classification, field extraction, latency, or cost performance on unseen PDFs.
+            <div style={{ ...mono, fontSize: 9, fontWeight: 800 }}>BOUNDARY</div>
+            <b style={{ display: "block", margin: "5px 0" }}>Structured evidence benchmark</b>
+            These 10 cases isolate decision logic. They do not count as OCR or document-AI accuracy tests; that is measured separately below.
+          </div>
+        </aside>
+      </section>
+
+      <section style={{ marginTop: 28, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 13, padding: 22 }}>
+        <div style={{ ...mono, color: C.teal, fontSize: 9.5, fontWeight: 800 }}>PDF / AZURE BASELINE · CONTROLLED DIGITAL FIXTURES</div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 18, alignItems: "start", flexWrap: "wrap", marginTop: 6 }}>
+          <div style={{ maxWidth: 790 }}>
+            <h2 style={{ margin: 0, fontSize: 23 }}>Does the end-to-end PDF path preserve the right evidence and routing?</h2>
+            <p style={{ color: C.sub, fontSize: 12, lineHeight: 1.6, margin: "8px 0 0" }}>Five labeled eight-page synthetic PDFs were processed through the live Azure OCR/layout path, Assay document classification and extraction, evidence linking, deterministic QC, and final recommendation logic. This is an initial controlled baseline, not a production accuracy benchmark.</p>
+          </div>
+          <div style={{ background: pdf.releaseGatePassed ? C.tealSoft : C.failSoft, color: pdf.releaseGatePassed ? C.teal : C.fail, borderRadius: 10, padding: "11px 13px", minWidth: 215 }}>
+            <div style={{ ...mono, fontSize: 9, fontWeight: 800 }}>PDF SAFETY GATE</div>
+            <div style={{ fontSize: 16, fontWeight: 850, marginTop: 4 }}>{pdf.releaseGatePassed ? "PASS · 0 false-ready" : "FAIL · investigate"}</div>
+          </div>
+        </div>
+      </section>
+
+      <MetricGrid cards={pdfCards} />
+
+      <section style={{ marginTop: 14, display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 14, alignItems: "start" }}>
+        <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 11, overflow: "hidden" }}>
+          <div style={{ padding: "14px 15px", borderBottom: `1px solid ${C.line}` }}>
+            <b>Measured PDF scenarios</b>
+            <div style={{ color: C.sub, fontSize: 10.5, marginTop: 3 }}>All five packages were synthetic digital PDFs generated from version-controlled fixtures. Each package contained eight pages.</div>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <div style={{ minWidth: 920 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "74px minmax(195px,1fr) 100px 100px 100px 155px 92px", gap: 9, padding: "9px 14px", background: "#eef2f0", ...mono, color: C.sub, fontSize: 9 }}>
+                <span>CASE</span><span>SCENARIO</span><span>CLASSIFY</span><span>EXTRACT</span><span>EVIDENCE</span><span>RECOMMENDATION</span><span>LATENCY</span>
+              </div>
+              {PDF_EVALUATION_BASELINE_ROWS.map((row) => <div key={row.id} style={{ display: "grid", gridTemplateColumns: "74px minmax(195px,1fr) 100px 100px 100px 155px 92px", gap: 9, padding: "12px 14px", borderTop: `1px solid ${C.line}`, alignItems: "center", fontSize: 10.5 }}>
+                <span style={mono}>{row.id}</span>
+                <span><b>{row.name}</b><br /><span style={{ color: C.sub, fontSize: 9.5 }}>{row.category}</span></span>
+                <span style={mono}>{row.classification.correct}/{row.classification.total}</span>
+                <span style={mono}>{row.extraction.correct}/{row.extraction.total}</span>
+                <span style={mono}>{row.evidence.correct}/{row.evidence.total}</span>
+                <span><Pill tone={toneFor(row.predictedRecommendation)}>{row.predictedRecommendation}</Pill></span>
+                <span style={mono}>{seconds(row.latencyMs)}</span>
+              </div>)}
+            </div>
+          </div>
+        </div>
+
+        <aside style={{ display: "grid", gap: 10 }}>
+          <div style={{ background: C.blueSoft, color: C.blue, borderRadius: 10, padding: 14, fontSize: 11, lineHeight: 1.55 }}>
+            <div style={{ ...mono, fontSize: 9, fontWeight: 800 }}>PROVIDER PATH</div>
+            <b style={{ display: "block", margin: "5px 0" }}>{PDF_EVALUATION_BASELINE_META.provider}</b>
+            {PDF_EVALUATION_BASELINE_META.modelId} · API {PDF_EVALUATION_BASELINE_META.apiVersion}. The configured F0 resource was handled as four sequential two-page requests per eight-page package, then recombined with original package page numbers.
+          </div>
+          <div style={{ background: C.reviewSoft, color: C.review, borderRadius: 10, padding: 14, fontSize: 11, lineHeight: 1.55 }}>
+            <div style={{ ...mono, fontSize: 9, fontWeight: 800 }}>LIMITATIONS</div>
+            <b style={{ display: "block", margin: "5px 0" }}>Do not generalize 100%</b>
+            Digital synthetic text only. This baseline does not cover scanned-image degradation, handwriting, skew/blur, or broad unseen layouts. Cost was not instrumented.
           </div>
           <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14, fontSize: 11, lineHeight: 1.55 }}>
-            <div style={{ ...mono, color: C.sub, fontSize: 9, fontWeight: 800 }}>NEXT BENCHMARK</div>
-            <b style={{ display: "block", margin: "5px 0" }}>PDF-level evaluation</b>
-            Run labeled synthetic PDFs through Azure and score page classification, field extraction, evidence localization, latency, and processing cost separately from decision accuracy.
+            <div style={{ ...mono, color: C.sub, fontSize: 9, fontWeight: 800 }}>NEXT STRESS SET</div>
+            <b style={{ display: "block", margin: "5px 0" }}>Degraded and varied PDFs</b>
+            Add controlled blur, rotation, lower-resolution scans, unseen layouts, and targeted extraction ambiguity before treating the benchmark as representative.
           </div>
         </aside>
       </section>
