@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createPackageQcReview } from "../src/domain/packageQcCase.js";
+import { computeRecommendation, RECOMMENDATION } from "../src/domain/mortgageQc.js";
 
 function baseResult() {
   return {
@@ -91,10 +92,11 @@ test("creates a package QC case with pinned profile and evidence-backed foundati
 
   assert.equal(review.id, "QC-PKG-12345678");
   assert.equal(review.profile.id, "MORTGAGE-QC-TX");
-  assert.equal(review.profile.version, "2.1.0");
+  assert.equal(review.profile.version, "2.2.0");
   assert.equal(review.documents.length, 7);
-  assert.equal(review.rules.length, 5);
+  assert.equal(review.rules.length, 6);
   assert.ok(review.rules.every((rule) => rule.status === "Pass"));
+  assert.equal(review.rules.find((rule) => rule.id === "PKG-DOC-REQ-001").status, "Pass");
   assert.equal(review.rules.find((rule) => rule.id === "PKG-LOAN-001").evidence.page, 1);
   assert.equal(review.rules.find((rule) => rule.id === "PKG-PROFILE-001").evidence.sourceDocument, "Promissory Note");
   assert.equal(review.sourceKind, "package");
@@ -105,7 +107,7 @@ test("adds document-specific chronology and consistency controls while keeping e
   result.documentQc = completeDocumentQc();
 
   const review = createPackageQcReview({ result, now: new Date("2026-08-11T20:30:00-04:00") });
-  assert.equal(review.rules.length, 14);
+  assert.equal(review.rules.length, 15);
   assert.equal(review.rules.find((rule) => rule.id === "NOTE-DATE-001").status, "Pass");
   assert.equal(review.rules.find((rule) => rule.id === "XDATE-001").status, "Pass");
   assert.equal(review.rules.find((rule) => rule.id === "RTC-CONTENT-001").status, "Pass");
@@ -117,6 +119,49 @@ test("adds document-specific chronology and consistency controls while keeping e
   assert.equal(review.rules.find((rule) => rule.id === "NOT-FIELDS-001").status, "Needs Review");
   assert.equal(review.rules.find((rule) => rule.id === "NOTE-SIG-001").confidence.evidenceComplete, false);
   assert.equal(review.rules.find((rule) => rule.id === "NOT-FIELDS-001").confidence.evidenceComplete, false);
+});
+
+test("routes a confidently missing profile-required document to a deterministic exception", () => {
+  const result = baseResult();
+  result.package.documents[6] = {
+    id: "DOC-07",
+    type: "Closing Disclosure",
+    startPage: 8,
+    endPage: 8,
+    pages: 1,
+    confidence: 0.9,
+    evidence: { page: 8, excerpt: "CLOSING DISCLOSURE" },
+    pageClassifications: [],
+  };
+
+  const review = createPackageQcReview({ result, now: new Date("2026-08-11T20:30:00-04:00") });
+  const rule = review.rules.find((item) => item.id === "PKG-DOC-REQ-001");
+  assert.equal(rule.status, "Fail");
+  assert.match(rule.extractedValue, /Notary Acknowledgment/i);
+  assert.equal(rule.evidence.scope, "package");
+  assert.equal(computeRecommendation(review.rules), RECOMMENDATION.EXCEPTION);
+});
+
+test("routes uncertain required-document completeness to human review instead of a deterministic fail", () => {
+  const result = baseResult();
+  result.package.documents[6] = {
+    id: "DOC-07",
+    type: "Unknown document",
+    startPage: 8,
+    endPage: 8,
+    pages: 1,
+    confidence: 0.25,
+    evidence: { page: 8, excerpt: "Unrecognized executed form" },
+    pageClassifications: [],
+  };
+  result.package.unknownPages = [8];
+  result.package.status = "Needs Package Review";
+
+  const review = createPackageQcReview({ result, now: new Date("2026-08-11T20:30:00-04:00") });
+  const rule = review.rules.find((item) => item.id === "PKG-DOC-REQ-001");
+  assert.equal(rule.status, "Needs Review");
+  assert.match(rule.confidence.reviewTrigger, /classification review/i);
+  assert.equal(computeRecommendation(review.rules), RECOMMENDATION.REVIEW);
 });
 
 test("routes cross-document mismatches to review and impossible chronology to deterministic failures", () => {
@@ -151,7 +196,7 @@ test("keeps missing signature text indicators in human review instead of claimin
   assert.match(review.rules.find((rule) => rule.id === "NOTE-SIG-001").confidence.reviewTrigger, /inspect the source page/i);
 });
 
-test("keeps unresolved package identity and profile context as blocking review findings", () => {
+test("keeps unresolved package identity and profile context as blocking review findings without inventing document requirements", () => {
   const result = baseResult();
   result.context.loanNumber = null;
   result.context.loanNumberCandidates = ["LN-900001", "LN-900002"];
@@ -162,6 +207,7 @@ test("keeps unresolved package identity and profile context as blocking review f
 
   const review = createPackageQcReview({ result, now: new Date("2026-08-11T20:30:00-04:00") });
   assert.equal(review.profile.id, "PACKAGE-CONTEXT-UNRESOLVED");
+  assert.equal(review.rules.find((rule) => rule.id === "PKG-DOC-REQ-001"), undefined);
   assert.equal(review.rules.find((rule) => rule.id === "PKG-LOAN-001").status, "Fail");
   assert.equal(review.rules.find((rule) => rule.id === "PKG-PROFILE-001").status, "Needs Review");
   assert.equal(review.jurisdiction, "Unresolved");
