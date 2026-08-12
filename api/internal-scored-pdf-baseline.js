@@ -32,16 +32,25 @@ export default async function handler(request, response) {
     const fixture = await createPdfEvaluationFixture(scenario.id);
     const startedAt = Date.now();
     const batch = await startPdfBatchAnalysis({ base64Source: fixture.base64Source });
-    await sleep(1500);
+    await sleep(5000);
 
     let raw = null;
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      raw = await getPdfBatchAnalysis({ analysisId: batch.analysisId });
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      try {
+        raw = await getPdfBatchAnalysis({ analysisId: batch.analysisId });
+      } catch (error) {
+        if (error.statusCode === 429) {
+          await sleep(31000);
+          continue;
+        }
+        throw error;
+      }
+
       if (raw.status === "succeeded") break;
       if (raw.status !== "running" && raw.status !== "notStarted") {
         return send(response, 502, { error: raw.error?.message || `Azure analysis ${raw.status}` });
       }
-      await sleep(1000);
+      await sleep(1800);
     }
 
     if (raw?.status !== "succeeded") return send(response, 504, { error: "Azure analysis did not complete within benchmark window" });
@@ -75,7 +84,7 @@ export default async function handler(request, response) {
         sourcePageCount: batch.sourcePageCount,
         analyzedPageCount: batch.analyzedPageCount,
         chunkCount: batch.chunkCount,
-        pagesPerRequest: batch.operations[0]?.endPage - batch.operations[0]?.startPage + 1,
+        pagesPerRequest: batch.operations[0]?.endPage - batch.operations[0].startPage + 1,
       },
       packageStatus: result.package.status,
       unknownPages: result.package.unknownPages,
