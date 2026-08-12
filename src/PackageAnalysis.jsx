@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { createPackageQcReview } from "./domain/packageQcCase.js";
+import { saveLiveCaseSession } from "./sessionLiveCase.js";
 
 const C = {
   bg: "#f5f7f6", panel: "#ffffff", ink: "#14211d", sub: "#60706a", line: "#dfe6e2",
@@ -19,6 +21,15 @@ function fileToBase64(file) {
     reader.onerror = () => reject(reader.error || new Error("Unable to read file"));
     reader.readAsDataURL(file);
   });
+}
+
+async function fileHash(file) {
+  try {
+    const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+    return `sha256:${Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 16)}…`;
+  } catch {
+    return "Session source";
+  }
 }
 
 function wait(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
@@ -104,8 +115,10 @@ export default function PackageAnalysis() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
   const [meta, setMeta] = useState(null);
+  const [channel, setChannel] = useState("QC_ONLY");
+  const [lastBase64, setLastBase64] = useState("");
 
-  const reset = (nextFile) => { setFile(nextFile); setPhase("idle"); setError(""); setResult(null); setMeta(null); };
+  const reset = (nextFile) => { setFile(nextFile); setPhase("idle"); setError(""); setResult(null); setMeta(null); setLastBase64(""); };
   const chooseSample = async () => {
     setPhase("preparing"); setError("");
     try { reset(await createSamplePackage()); }
@@ -119,6 +132,7 @@ export default function PackageAnalysis() {
       if (!(file.type === "application/pdf" || file.name?.toLowerCase().endsWith(".pdf"))) throw new Error("Only PDF files are supported");
       if (file.size > 4 * 1024 * 1024) throw new Error("PDF must be 4 MB or smaller");
       const base64Source = await fileToBase64(file);
+      setLastBase64(base64Source);
       const response = await fetch("/api/package-analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ base64Source, fileName: file.name, mimeType: "application/pdf" }) });
       const start = await response.json();
       if (!response.ok) throw new Error(start.error || "Unable to start package analysis");
@@ -138,6 +152,17 @@ export default function PackageAnalysis() {
     }
   };
 
+  const createCase = async () => {
+    if (!result || !file) return;
+    const review = createPackageQcReview({ result, meta, channel, documentHash: await fileHash(file) });
+    const stored = saveLiveCaseSession({ review, pdfBase64: lastBase64 || await fileToBase64(file), fileName: file.name });
+    if (!stored.caseStored) {
+      setError("The package was analyzed, but this browser could not retain the QC case. Try again in a fresh session.");
+      return;
+    }
+    window.location.assign(`/?case=${encodeURIComponent(review.id)}`);
+  };
+
   const tone = result ? statusTone(result.package.status) : null;
 
   return <main style={{ minHeight: "100vh", background: C.bg, color: C.ink, ...display }}>
@@ -149,8 +174,9 @@ export default function PackageAnalysis() {
 
       <section style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 18 }}>
         <div style={{ background: C.blueSoft, color: C.blue, borderRadius: 8, padding: 11, fontSize: 11.5, marginBottom: 14 }}><b>Use sample documents only.</b> Current package scope is up to 8 pages and 4 MB. Unknown or low-confidence pages remain explicit review items; Assay does not silently assign them to a document type.</div>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 170px auto", gap: 12, alignItems: "center" }}>
           <label style={{ border: `1.5px dashed ${C.line}`, borderRadius: 9, padding: 18, cursor: "pointer" }}><input type="file" accept="application/pdf,.pdf" style={{ display: "none" }} onChange={(event) => reset(event.target.files?.[0] || null)} /><b>{file ? file.name : "Choose a combined sample mortgage package"}</b><br /><span style={{ color: C.sub, fontSize: 11 }}>{file ? `${(file.size / 1024).toFixed(1)} KB` : "PDF · up to 4 MB · first 8 pages analyzed"}</span></label>
+          <label style={{ display: "grid", gap: 5, fontSize: 11 }}>Intake channel<select value={channel} onChange={(event) => setChannel(event.target.value)} style={{ padding: 10, borderRadius: 8, border: `1px solid ${C.line}`, background: C.panel }}><option value="RON">RON</option><option value="MOBILE_NOTARY">Mobile Notary</option><option value="QC_ONLY">QC Only</option></select></label>
           <div style={{ display: "grid", gap: 8 }}><Button secondary onClick={chooseSample} disabled={phase === "preparing"}>{phase === "preparing" ? "Creating…" : "Create 8-page sample"}</Button><Button onClick={analyze} disabled={!file || ["uploading", "analyzing", "preparing"].includes(phase)}>{phase === "uploading" ? "Uploading…" : phase === "analyzing" ? "Analyzing package…" : "Analyze package"}</Button></div>
         </div>
         {meta && <div style={{ ...mono, color: C.sub, fontSize: 10, marginTop: 10 }}>Provider: {meta.provider} · model {meta.modelId} · pages {meta.pageScope}</div>}
@@ -158,6 +184,8 @@ export default function PackageAnalysis() {
       </section>
 
       {result && <>
+        <section style={{ marginTop: 14, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap", background: C.tealSoft, border: `1px solid ${C.teal}33`, borderRadius: 10, padding: 13 }}><div><b style={{ color: C.teal }}>Package understanding complete.</b><div style={{ color: C.sub, fontSize: 11, marginTop: 3 }}>Create a QC case to pin the profile candidate, run package-foundation controls, and continue in the same analyst review workflow.</div></div><Button onClick={createCase}>Create QC case & review →</Button></section>
+
         <section style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(4,minmax(160px,1fr))", gap: 9 }}>
           {[
             ["Package status", result.package.status],
@@ -185,7 +213,7 @@ export default function PackageAnalysis() {
           </aside>
         </section>
 
-        <div style={{ marginTop: 14, background: C.blueSoft, color: C.blue, borderRadius: 10, padding: 12, fontSize: 11.5 }}><b>Current milestone boundary:</b> Package Intelligence stops here. The next connection is to pin the resolved profile, generate package-level QC controls, and hand the package into the existing evidence-backed review workspace.</div>
+        <div style={{ marginTop: 14, background: C.blueSoft, color: C.blue, borderRadius: 10, padding: 12, fontSize: 11.5 }}><b>QC scope:</b> This handoff evaluates package-foundation controls only: classification coverage, loan identity, borrower extraction, profile context, and OCR quality. Document-specific execution, signature, notary, and policy controls remain future work.</div>
       </>}
     </div>
   </main>;
