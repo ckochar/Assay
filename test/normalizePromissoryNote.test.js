@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizePromissoryNoteAnalysis } from "../api/lib/normalizePromissoryNote.js";
+import { normalizePromissoryNoteAnalysis } from "../server/lib/normalizePromissoryNote.js";
 
 const mockResult = {
   status: "succeeded",

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { extractDocumentSpecificQc } from "../api/lib/documentSpecificQc.js";
+import { extractDocumentSpecificQc } from "../server/lib/documentSpecificQc.js";
 
 function page(pageNumber, lines) {
   return {

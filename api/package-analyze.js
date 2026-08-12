@@ -1,6 +1,6 @@
-import { isAzureConfigured } from "./lib/azureDocumentIntelligence.js";
-import { startPdfBatchAnalysis } from "./lib/pdfBatchAnalysis.js";
-import { checkRateLimit, getClientIp, validatePdfPayload } from "./lib/requestGuards.js";
+import { isAzureConfigured } from "../server/lib/azureDocumentIntelligence.js";
+import { startPdfBatchAnalysis } from "../server/lib/pdfBatchAnalysis.js";
+import { checkRateLimit, getClientIp, validatePdfPayload } from "../server/lib/requestGuards.js";
 
 function send(response, status, payload) {
   response.status(status).json(payload);

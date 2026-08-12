@@ -184,12 +184,13 @@ Audit + evaluation context
 
 ### Key implementation components
 
-- `api/package-analyze.js` / `api/package-analysis.js` — asynchronous package processing
-- `api/lib/azureDocumentIntelligence.js` — Azure provider integration
-- `api/lib/pdfBatchAnalysis.js` — provider-aware page splitting, throttling, recombination, and page rebasing
-- `api/lib/normalizeMortgagePackage.js` — package segmentation and context normalization
-- `api/lib/documentSpecificQc.js` — document-specific evidence extraction
-- `api/lib/pdfStressFixtures.js` — reproducible digital stress fixtures
+- `api/package-analyze.js` / `api/package-analysis.js` — the package HTTP entrypoints; `api/` is intentionally limited to deployable endpoints
+- `server/lib/azureDocumentIntelligence.js` — Azure provider integration
+- `server/lib/pdfBatchAnalysis.js` — provider-aware page splitting, throttling, recombination, and page rebasing
+- `server/lib/normalizeMortgagePackage.js` — package segmentation and context normalization
+- `server/lib/documentSpecificQc.js` — document-specific evidence extraction
+- `server/fixtures/pdfEvaluationFixtures.js` — reproducible baseline fixtures
+- `server/fixtures/pdfStressFixtures.js` — reproducible digital stress fixtures
 - `src/domain/packageQcCase.js` — deterministic package/document QC case generation, including profile-driven inventory checks
 - `src/PdfEvidenceViewer.jsx` — source-page evidence review
 - `src/domain/mortgageQc.js` — recommendation, blocker, override, and audit semantics

@@ -1,5 +1,5 @@
-import { getDocumentAnalysis, isAzureConfigured } from "./lib/azureDocumentIntelligence.js";
-import { normalizePromissoryNoteAnalysis } from "./lib/normalizePromissoryNote.js";
+import { getDocumentAnalysis, isAzureConfigured } from "../server/lib/azureDocumentIntelligence.js";
+import { normalizePromissoryNoteAnalysis } from "../server/lib/normalizePromissoryNote.js";
 
 function send(response, status, payload) {
   response.status(status).json(payload);
