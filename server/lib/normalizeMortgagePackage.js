@@ -1,3 +1,5 @@
+import { ocrLinesForPage, ocrPageText } from "./azureTextLayout.js";
+
 const DOCUMENT_DEFINITIONS = [
   {
     type: "Promissory Note",
@@ -40,7 +42,7 @@ function clamp(value, min, max) {
 }
 
 function pageText(page) {
-  return (page?.lines || []).map((line) => line.content).join("\n");
+  return ocrPageText(page);
 }
 
 function pageGeometry(page) {
@@ -52,25 +54,27 @@ function pageGeometry(page) {
 }
 
 function evidenceFromPage(page, matchers = []) {
-  const lines = page?.lines || [];
+  const lines = ocrLinesForPage(page);
   const line = lines.find((candidate) => matchers.some((matcher) => matcher.test(candidate.content))) || lines[0];
   return {
     page: Number.isInteger(page?.pageNumber) ? page.pageNumber : null,
     excerpt: line?.content || "No page evidence found",
     polygon: line?.polygon || null,
     pageGeometry: pageGeometry(page),
+    source: line?.source || null,
   };
 }
 
 function findEvidence(pages, matchers) {
   for (const page of pages) {
-    const line = (page?.lines || []).find((candidate) => matchers.some((matcher) => matcher.test(candidate.content)));
+    const line = ocrLinesForPage(page).find((candidate) => matchers.some((matcher) => matcher.test(candidate.content)));
     if (line) {
       return {
         page: page.pageNumber || 1,
         excerpt: line.content,
         polygon: line.polygon || null,
         pageGeometry: pageGeometry(page),
+        source: line.source || null,
       };
     }
   }
@@ -78,8 +82,9 @@ function findEvidence(pages, matchers) {
 }
 
 function classifyPage(page) {
-  const text = pageText(page);
-  const firstLine = page?.lines?.find((line) => line.content?.trim())?.content || "";
+  const lines = ocrLinesForPage(page);
+  const text = lines.map((line) => line.content).join("\n");
+  const firstLine = lines.find((line) => line.content?.trim())?.content || "";
   let best = { type: "Unknown document", matched: 0, signals: [], titleMatched: false };
 
   for (const definition of DOCUMENT_DEFINITIONS) {
