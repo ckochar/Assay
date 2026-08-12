@@ -1,4 +1,5 @@
-import { getDocumentAnalysis, isAzureConfigured } from "./lib/azureDocumentIntelligence.js";
+import { isAzureConfigured } from "./lib/azureDocumentIntelligence.js";
+import { getPdfBatchAnalysis } from "./lib/pdfBatchAnalysis.js";
 import { normalizeMortgagePackageAnalysis } from "./lib/normalizeMortgagePackage.js";
 import { extractDocumentSpecificQc } from "./lib/documentSpecificQc.js";
 
@@ -17,7 +18,7 @@ export default async function handler(request, response) {
   }
 
   try {
-    const raw = await getDocumentAnalysis(request.query.id);
+    const raw = await getPdfBatchAnalysis({ analysisId: request.query.id });
     if (raw.status === "running" || raw.status === "notStarted") return send(response, 202, { status: raw.status });
     if (raw.status !== "succeeded") return send(response, 502, { status: raw.status, error: raw.error?.message || "Package analysis failed" });
 
