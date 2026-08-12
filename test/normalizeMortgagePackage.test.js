@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeMortgagePackageAnalysis } from "../api/lib/normalizeMortgagePackage.js";
+import { normalizeMortgagePackageAnalysis } from "../server/lib/normalizeMortgagePackage.js";
 
 function page(pageNumber, lines) {
   return {
