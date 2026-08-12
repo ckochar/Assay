@@ -175,11 +175,11 @@ export const PDF_EVALUATION_SCENARIOS = Object.freeze([
     id: "PDF-003",
     name: "Unresolved jurisdiction",
     category: "Context routing",
-    description: "Removes property-state and notary-state text so Assay must not invent a jurisdiction profile.",
+    description: "Removes supported property-state evidence and uses an unsupported notary venue so Assay must not invent a TX/CA/FL profile.",
     label: label({ expectedRecommendation: "Needs Review", jurisdiction: null }),
     mutate(pages) {
       removeLines(pages, /Property Address:/i);
-      pages[7].lines = pages[7].lines.filter((line) => !/State of Texas/i.test(line));
+      replaceLine(pages[7], /State of Texas/i, "State of Nevada");
     },
   },
   {
