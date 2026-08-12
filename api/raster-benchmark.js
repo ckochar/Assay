@@ -22,7 +22,7 @@ export default async function handler(request, response) {
     return send(response, 405, { error: "Method not allowed" });
   }
 
-  const id = String(request.query.case || "");
+  const id = String(request.query.case || "RASTER-002");
   if (!ALLOWED.has(id)) return send(response, 400, { error: "Unknown raster benchmark case" });
 
   const scenario = getPdfRasterStressScenario(id);
