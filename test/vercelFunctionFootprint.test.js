@@ -18,14 +18,13 @@ async function listJavaScriptFiles(directory) {
   return files.sort();
 }
 
-test("Vercel api directory remains below the Hobby function ceiling during the temporary raster preview run", async () => {
+test("Vercel api directory contains only the four HTTP entrypoints", async () => {
   const files = await listJavaScriptFiles(apiDir);
   assert.deepEqual(files, [
     "analysis.js",
     "analyze.js",
     "package-analysis.js",
     "package-analyze.js",
-    "raster-benchmark.js",
   ]);
   assert.ok(files.length < 12, "Keep free-tier headroom below the historical 12-function ceiling");
 });
