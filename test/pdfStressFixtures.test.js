@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { PDF_STRESS_SCENARIOS, createPdfStressFixture, getPdfStressScenario } from "../api/lib/pdfStressFixtures.js";
+import { PDF_STRESS_SCENARIOS, createPdfStressFixture, getPdfStressScenario } from "../server/fixtures/pdfStressFixtures.js";
 
 test("stress set stays intentionally small and fully labeled", () => {
   assert.equal(PDF_STRESS_SCENARIOS.length, 3);
