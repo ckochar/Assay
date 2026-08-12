@@ -13,14 +13,14 @@ function page(pageNumber, lines) {
   };
 }
 
-function result(pages) {
+function result(pages, content = null) {
   return {
     status: "succeeded",
     analyzeResult: {
       modelId: "prebuilt-layout",
       apiVersion: "2024-11-30",
       pages,
-      content: pages.flatMap((item) => item.lines.map((line) => line.content)).join("\n"),
+      content: content ?? pages.flatMap((item) => item.lines.map((line) => line.content)).join("\n"),
     },
   };
 }
@@ -41,8 +41,27 @@ test("segments a combined mortgage package into consecutive document ranges", ()
   ]);
   assert.equal(normalized.context.loanNumber, "LN-900001");
   assert.equal(normalized.context.jurisdiction.code, "TX");
+  assert.equal(normalized.context.jurisdiction.evidence.page, 1);
+  assert.match(normalized.context.jurisdiction.evidence.excerpt, /Property Address/i);
   assert.equal(normalized.context.profileResolution.status, "Candidate profile resolved");
   assert.equal(normalized.package.status, "Ready for QC Evaluation");
+});
+
+test("links jurisdiction evidence by the source label even when aggregate OCR spacing differs", () => {
+  const pages = [
+    page(1, ["PROMISSORY NOTE", "Loan No .: LN-900001", "Property Address : 7408 Willow Bend Drive, Plano, TX 75024"]),
+  ];
+  const aggregateContent = [
+    "PROMISSORY NOTE",
+    "Loan No.: LN-900001",
+    "Property Address: 7408 Willow Bend Drive, Plano, TX 75024",
+  ].join("\n");
+  const normalized = normalizeMortgagePackageAnalysis(result(pages, aggregateContent));
+
+  assert.equal(normalized.context.jurisdiction.code, "TX");
+  assert.equal(normalized.context.jurisdiction.evidence.page, 1);
+  assert.equal(normalized.context.jurisdiction.evidence.excerpt, "Property Address : 7408 Willow Bend Drive, Plano, TX 75024");
+  assert.ok(Array.isArray(normalized.context.jurisdiction.evidence.polygon));
 });
 
 test("keeps unresolved package context explicit instead of inventing a profile", () => {
