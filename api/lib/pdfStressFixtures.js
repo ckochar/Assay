@@ -67,8 +67,9 @@ export const PDF_STRESS_SCENARIOS = Object.freeze([
     id: "STRESS-003",
     name: "Duplicated closing page / missing notary",
     category: "Package structure stress",
-    description: "Replaces the notary page with a duplicate Closing Disclosure so Assay must not invent notary evidence from a missing document.",
+    description: "Replaces the notary page with a duplicate Closing Disclosure so the QC-only sample profile should surface the missing configured document as an inventory exception.",
     label: Object.freeze(baseLabel({
+      expectedRecommendation: "Exception Identified",
       pageTypes: BASE_PAGES.map((page, index) => index === 7 ? "Closing Disclosure" : page.type),
       fields: {
         ...baseLabel().fields,

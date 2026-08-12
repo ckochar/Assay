@@ -1,7 +1,35 @@
+const QC_ONLY_REQUIRED_DOCUMENT_TYPES = Object.freeze([
+  "Promissory Note",
+  "Mortgage or Deed of Trust",
+  "Closing Disclosure",
+  "Notice of Right to Cancel",
+  "Occupancy Affidavit",
+  "Signature/Name Affidavit",
+  "Notary Acknowledgment",
+]);
+
 const PROFILE_CANDIDATES = Object.freeze({
-  TX: { id: "MORTGAGE-QC-TX", version: "2.1.0", effectiveAt: "2026-08-01", jurisdiction: "Texas" },
-  CA: { id: "MORTGAGE-QC-CA", version: "1.4.0", effectiveAt: "2026-07-15", jurisdiction: "California" },
-  FL: { id: "MORTGAGE-QC-FL", version: "3.0.0", effectiveAt: "2026-08-05", jurisdiction: "Florida" },
+  TX: {
+    id: "MORTGAGE-QC-TX",
+    version: "2.2.0",
+    effectiveAt: "2026-08-12",
+    jurisdiction: "Texas",
+    requiredDocumentTypesByChannel: Object.freeze({ QC_ONLY: QC_ONLY_REQUIRED_DOCUMENT_TYPES }),
+  },
+  CA: {
+    id: "MORTGAGE-QC-CA",
+    version: "1.5.0",
+    effectiveAt: "2026-08-12",
+    jurisdiction: "California",
+    requiredDocumentTypesByChannel: Object.freeze({ QC_ONLY: QC_ONLY_REQUIRED_DOCUMENT_TYPES }),
+  },
+  FL: {
+    id: "MORTGAGE-QC-FL",
+    version: "3.1.0",
+    effectiveAt: "2026-08-12",
+    jurisdiction: "Florida",
+    requiredDocumentTypesByChannel: Object.freeze({ QC_ONLY: QC_ONLY_REQUIRED_DOCUMENT_TYPES }),
+  },
 });
 
 function displayBorrowers(borrowers = []) {
@@ -38,6 +66,53 @@ function classificationEvidence(result) {
   }
   const first = result.package.documents[0];
   return evidenceFor(result.package.documents, first?.evidence, "All analyzed pages classified");
+}
+
+function requiredDocumentInventoryRule({ result, candidate, channel, inventoryNeedsReview, ocrLabel }) {
+  const required = candidate?.requiredDocumentTypesByChannel?.[channel] || [];
+  if (!required.length) return null;
+
+  const detected = [...new Set(
+    result.package.documents
+      .map((doc) => doc.type)
+      .filter((type) => type && type !== "Unknown document")
+  )];
+  const detectedSet = new Set(detected);
+  const missing = required.filter((type) => !detectedSet.has(type));
+  const complete = missing.length === 0;
+  const status = complete ? "Pass" : inventoryNeedsReview ? "Needs Review" : "Fail";
+  const firstPage = result.package.documents[0]?.startPage || 1;
+
+  return {
+    id: "PKG-DOC-REQ-001",
+    name: "Profile-required document inventory complete",
+    severity: "Critical",
+    fundingCritical: true,
+    status,
+    requirement: "For this fictional portfolio profile and intake channel, configured required document types must be present in the classified package inventory. A confidently absent configured document is a deterministic inventory exception; uncertain classification routes to human review. These sample requirements are not legal, investor, or lender guidance.",
+    extractedValue: complete
+      ? `${required.length} of ${required.length} configured document types detected`
+      : `Missing: ${missing.join("; ")} · detected ${detected.length} of ${required.length}`,
+    confidence: {
+      classification: inventoryNeedsReview ? 0.65 : Math.min(...result.package.documents.map((doc) => doc.confidence || 1)),
+      extraction: null,
+      ocrQuality: ocrLabel,
+      evidenceComplete: complete || !inventoryNeedsReview,
+      reviewTrigger: complete
+        ? null
+        : inventoryNeedsReview
+          ? "Required-document completeness is uncertain because one or more pages need classification review"
+          : `Configured required document missing: ${missing.join("; ")}`,
+    },
+    evidence: {
+      scope: "package",
+      sourceDocument: "Package inventory",
+      page: firstPage,
+      excerpt: `Profile ${candidate.id} v${candidate.version} · ${channel} · required: ${required.join("; ")} · detected: ${detected.join("; ") || "none"}${missing.length ? ` · missing: ${missing.join("; ")}` : " · complete"}`,
+      polygon: null,
+      pageGeometry: { width: null, height: null, unit: null },
+    },
+  };
 }
 
 function isOnOrAfter(later, earlier) {
@@ -275,6 +350,7 @@ export function createPackageQcReview({
   const loanCandidates = result.context.loanNumberCandidates || [];
   const ocrLabel = result.package.ocrQuality?.label || "Unknown";
   const ocrNeedsReview = ocrLabel === "Low" || ocrLabel === "Unknown";
+  const requiredInventoryRule = requiredDocumentInventoryRule({ result, candidate, channel, inventoryNeedsReview, ocrLabel });
 
   const rules = [
     {
@@ -296,6 +372,7 @@ export function createPackageQcReview({
       },
       evidence: classificationEvidence(result),
     },
+    ...(requiredInventoryRule ? [requiredInventoryRule] : []),
     {
       id: "PKG-LOAN-001",
       name: "Loan number consistent across analyzed package",

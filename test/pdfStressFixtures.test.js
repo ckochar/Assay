@@ -20,8 +20,9 @@ test("stress fixtures generate eight-page PDFs without external services", async
   }
 });
 
-test("structural stress case labels the missing notary evidence explicitly", () => {
+test("structural stress case labels the missing configured notary document as an exception", () => {
   const scenario = getPdfStressScenario("STRESS-003");
+  assert.equal(scenario.label.expectedRecommendation, "Exception Identified");
   assert.equal(scenario.label.pageTypes[7], "Closing Disclosure");
   assert.equal(scenario.label.fields.notaryAcknowledgmentDate, null);
   assert.equal(scenario.label.fields.notaryCommissionExpirationDate, null);
