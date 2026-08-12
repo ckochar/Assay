@@ -6,6 +6,11 @@ import {
   PDF_EVALUATION_BASELINE_ROWS,
   PDF_EVALUATION_BASELINE_SUMMARY,
 } from "./data/pdfEvaluationBaseline.js";
+import {
+  PDF_STRESS_BASELINE_META,
+  PDF_STRESS_BASELINE_ROWS,
+  PDF_STRESS_BASELINE_SUMMARY,
+} from "./data/pdfStressBaseline.js";
 
 const C = {
   bg: "#f5f7f6", panel: "#ffffff", ink: "#14211d", sub: "#60706a", line: "#dfe6e2",
@@ -64,6 +69,17 @@ export default function EvaluationScreen() {
     [seconds(pdf.p50LatencyMs), "P50 latency"],
     [seconds(pdf.p95LatencyMs), "P95 latency"],
   ];
+  const stress = PDF_STRESS_BASELINE_SUMMARY;
+  const stressCards = [
+    [`${stress.packages} / ${stress.pagesAnalyzed}`, "Packages / pages"],
+    [`${stress.classificationCorrect}/${stress.classificationTotal}`, "Page classification", stress.classificationAccuracy === 1],
+    [`${stress.extractionCorrect}/${stress.extractionTotal}`, "Labeled fields", stress.extractionAccuracy === 1],
+    [`${stress.evidenceCorrect}/${stress.evidenceTotal}`, "Evidence source page", stress.evidenceSourcePageAccuracy === 1],
+    [`${stress.recommendationCorrect}/${stress.packages}`, "Recommendation match"],
+    [stress.falseReady, "False-ready packages", stress.falseReady === 0],
+    [seconds(stress.p50LatencyMs), "P50 latency"],
+    [seconds(stress.p95LatencyMs), "P95 latency"],
+  ];
 
   return <main style={{ ...display, minHeight: "100vh", background: C.bg, color: C.ink }}>
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "28px 24px 38px" }}>
@@ -114,7 +130,7 @@ export default function EvaluationScreen() {
           <div style={{ background: C.reviewSoft, color: C.review, borderRadius: 10, padding: 14, fontSize: 11, lineHeight: 1.55 }}>
             <div style={{ ...mono, fontSize: 9, fontWeight: 800 }}>BOUNDARY</div>
             <b style={{ display: "block", margin: "5px 0" }}>Structured evidence benchmark</b>
-            These 10 cases isolate decision logic. They do not count as OCR or document-AI accuracy tests; that is measured separately below.
+            These 10 cases isolate decision logic. They do not count as OCR or document-AI accuracy tests; those are measured separately below.
           </div>
         </aside>
       </section>
@@ -170,10 +186,65 @@ export default function EvaluationScreen() {
             <b style={{ display: "block", margin: "5px 0" }}>Do not generalize 100%</b>
             Digital synthetic text only. This baseline does not cover scanned-image degradation, handwriting, skew/blur, or broad unseen layouts. Cost was not instrumented.
           </div>
+        </aside>
+      </section>
+
+      <section style={{ marginTop: 28, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 13, padding: 22 }}>
+        <div style={{ ...mono, color: C.blue, fontSize: 9.5, fontWeight: 800 }}>DOCUMENT AI STRESS · CONTROLLED DIGITAL PDFS</div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 18, alignItems: "start", flexWrap: "wrap", marginTop: 6 }}>
+          <div style={{ maxWidth: 790 }}>
+            <h2 style={{ margin: 0, fontSize: 23 }}>What breaks when the package shape gets less comfortable?</h2>
+            <p style={{ color: C.sub, fontSize: 12, lineHeight: 1.6, margin: "8px 0 0" }}>Three additional eight-page synthetic PDFs tested orientation metadata, compact low-contrast typography, and a structural package defect. These are digital-document stresses, not rasterized scan tests.</p>
+          </div>
+          <div style={{ background: stress.releaseGatePassed ? C.tealSoft : C.failSoft, color: stress.releaseGatePassed ? C.teal : C.fail, borderRadius: 10, padding: "11px 13px", minWidth: 215 }}>
+            <div style={{ ...mono, fontSize: 9, fontWeight: 800 }}>STRESS SAFETY GATE</div>
+            <div style={{ fontSize: 16, fontWeight: 850, marginTop: 4 }}>{stress.releaseGatePassed ? "PASS · 0 false-ready" : "FAIL · investigate"}</div>
+          </div>
+        </div>
+      </section>
+
+      <MetricGrid cards={stressCards} />
+
+      <section style={{ marginTop: 14, display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 14, alignItems: "start" }}>
+        <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 11, overflow: "hidden" }}>
+          <div style={{ padding: "14px 15px", borderBottom: `1px solid ${C.line}` }}>
+            <b>Measured stress scenarios</b>
+            <div style={{ color: C.sub, fontSize: 10.5, marginTop: 3 }}>The published result uses the final post-fix STRESS-003 rerun under {PDF_STRESS_BASELINE_META.profile}.</div>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <div style={{ minWidth: 1040 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "88px minmax(180px,1fr) 86px 86px 86px 150px 78px minmax(250px,1.2fr)", gap: 9, padding: "9px 14px", background: "#eef2f0", ...mono, color: C.sub, fontSize: 9 }}>
+                <span>CASE</span><span>STRESS</span><span>CLASSIFY</span><span>EXTRACT</span><span>EVIDENCE</span><span>ASSAY</span><span>LATENCY</span><span>OBSERVATION</span>
+              </div>
+              {PDF_STRESS_BASELINE_ROWS.map((row) => <div key={row.id} style={{ display: "grid", gridTemplateColumns: "88px minmax(180px,1fr) 86px 86px 86px 150px 78px minmax(250px,1.2fr)", gap: 9, padding: "12px 14px", borderTop: `1px solid ${C.line}`, alignItems: "start", fontSize: 10.5 }}>
+                <span style={mono}>{row.id}</span>
+                <span><b>{row.name}</b><br /><span style={{ color: C.sub, fontSize: 9.5 }}>{row.category}</span></span>
+                <span style={mono}>{row.classification.correct}/{row.classification.total}</span>
+                <span style={mono}>{row.extraction.correct}/{row.extraction.total}</span>
+                <span style={mono}>{row.evidence.correct}/{row.evidence.total}</span>
+                <span><Pill tone={toneFor(row.predictedRecommendation)}>{row.predictedRecommendation}</Pill></span>
+                <span style={mono}>{seconds(row.latencyMs)}</span>
+                <span style={{ color: C.sub, lineHeight: 1.45 }}>{row.observation}</span>
+              </div>)}
+            </div>
+          </div>
+        </div>
+
+        <aside style={{ display: "grid", gap: 10 }}>
+          <div style={{ background: C.tealSoft, color: C.teal, borderRadius: 10, padding: 14, fontSize: 11, lineHeight: 1.55 }}>
+            <div style={{ ...mono, fontSize: 9, fontWeight: 800 }}>BENCHMARK → PRODUCT CHANGE</div>
+            <b style={{ display: "block", margin: "5px 0" }}>A real gap was found and fixed</b>
+            STRESS-003 initially showed that Azure correctly omitted a missing Notary document, while Assay had no profile-driven required-document control. Assay added <span style={mono}>PKG-DOC-REQ-001</span>, versioned the fictional TX profile to 2.2.0, and the rerun produced the expected exception.
+          </div>
+          <div style={{ background: C.reviewSoft, color: C.review, borderRadius: 10, padding: 14, fontSize: 11, lineHeight: 1.55 }}>
+            <div style={{ ...mono, fontSize: 9, fontWeight: 800 }}>BOUNDARY</div>
+            <b style={{ display: "block", margin: "5px 0" }}>Still not a scan benchmark</b>
+            Rotation and compact layout are digital PDF manipulations. Handwriting, low-DPI raster scans, blur, noise, scan compression, and severe image degradation remain unmeasured. Cost was not instrumented.
+          </div>
           <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14, fontSize: 11, lineHeight: 1.55 }}>
-            <div style={{ ...mono, color: C.sub, fontSize: 9, fontWeight: 800 }}>NEXT STRESS SET</div>
-            <b style={{ display: "block", margin: "5px 0" }}>Degraded and varied PDFs</b>
-            Add controlled blur, rotation, lower-resolution scans, unseen layouts, and targeted extraction ambiguity before treating the benchmark as representative.
+            <div style={{ ...mono, color: C.sub, fontSize: 9, fontWeight: 800 }}>NEXT RELIABILITY STEP</div>
+            <b style={{ display: "block", margin: "5px 0" }}>True raster / scan stress</b>
+            Add a small free-tier-safe set of rasterized low-resolution pages, controlled blur/noise/skew, and unseen layout variants before broadening any accuracy claim.
           </div>
         </aside>
       </section>
