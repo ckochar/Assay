@@ -62,6 +62,21 @@ function evidenceFromPage(page, matchers = []) {
   };
 }
 
+function findEvidence(pages, matchers) {
+  for (const page of pages) {
+    const line = (page?.lines || []).find((candidate) => matchers.some((matcher) => matcher.test(candidate.content)));
+    if (line) {
+      return {
+        page: page.pageNumber || 1,
+        excerpt: line.content,
+        polygon: line.polygon || null,
+        pageGeometry: pageGeometry(page),
+      };
+    }
+  }
+  return null;
+}
+
 function classifyPage(page) {
   const text = pageText(page);
   const firstLine = page?.lines?.find((line) => line.content?.trim())?.content || "";
@@ -165,6 +180,8 @@ export function normalizeMortgagePackageAnalysis(result) {
   const loanNumbers = extractLoanNumbers(content);
   const borrowers = extractBorrowers(content);
   const jurisdiction = extractJurisdiction(content, pages);
+  const loanNumberEvidence = findEvidence(pages, [/Loan\s*(?:No\.?|Number)\s*:/i, /\bLN-\d{4,}\b/i]);
+  const borrowerEvidence = findEvidence(pages, [/FOR VALUE RECEIVED/i, /Borrower\s*:/i]);
   const unknownPages = classifiedPages.filter((item) => item.type === "Unknown document").map((item) => item.page);
   const lowConfidencePages = classifiedPages.filter((item) => item.confidence < 0.7).map((item) => item.page);
   const knownDocumentTypes = [...new Set(documents.filter((item) => item.type !== "Unknown document").map((item) => item.type))];
@@ -186,7 +203,9 @@ export function normalizeMortgagePackageAnalysis(result) {
       loanNumber: loanNumbers.length === 1 ? loanNumbers[0] : null,
       loanNumberCandidates: loanNumbers,
       loanNumberConsistent: loanNumbers.length === 1,
+      loanNumberEvidence,
       borrowers,
+      borrowerEvidence,
       jurisdiction,
       profileResolution: jurisdiction.code
         ? { status: "Candidate profile resolved", jurisdiction: jurisdiction.code, requiresHumanConfirmation: jurisdiction.confidence < 0.9 }
