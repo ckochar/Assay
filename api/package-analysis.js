@@ -1,5 +1,5 @@
-import { isAzureConfigured } from "./lib/azureDocumentIntelligence.js";
-import { getPdfBatchAnalysis } from "./lib/pdfBatchAnalysis.js";
+import { isAzureConfigured } from "../server/lib/azureDocumentIntelligence.js";
+import { getPdfBatchAnalysis } from "../server/lib/pdfBatchAnalysis.js";
 import { normalizeMortgagePackageAnalysis } from "./lib/normalizeMortgagePackage.js";
 import { extractDocumentSpecificQc } from "./lib/documentSpecificQc.js";
 
