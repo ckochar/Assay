@@ -61,6 +61,8 @@ async function createSamplePackage() {
     "Loan No.: LN-900001",
     "The unpaid principal balance bears interest at 6.250% annually.",
     "This Note is secured by a Deed of Trust dated the same day.",
+    "Signature: Maya Patel",
+    "Signature: Rohan Patel",
     "Borrower: Maya Patel",
     "Borrower: Rohan Patel",
   ]);
@@ -73,14 +75,21 @@ async function createSamplePackage() {
   ]);
   addPage("CLOSING DISCLOSURE", [
     "Loan No.: LN-900001",
+    "Closing Date: August 9, 2026",
     "Loan Terms",
     "Projected Payments",
     "Cash to Close",
+    "Borrower: Maya Patel",
+    "Borrower: Rohan Patel",
     "Property Address: 7408 Willow Bend Drive, Plano, TX 75024",
   ]);
   addPage("NOTICE OF RIGHT TO CANCEL", [
     "Loan No.: LN-900001",
+    "Transaction Date: August 9, 2026",
+    "Cancellation Deadline: August 12, 2026",
     "You may cancel this transaction within the applicable period.",
+    "Borrower: Maya Patel",
+    "Borrower: Rohan Patel",
     "Property Address: 7408 Willow Bend Drive, Plano, TX 75024",
   ]);
   addPage("OCCUPANCY AFFIDAVIT", [
@@ -184,7 +193,7 @@ export default function PackageAnalysis() {
       </section>
 
       {result && <>
-        <section style={{ marginTop: 14, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap", background: C.tealSoft, border: `1px solid ${C.teal}33`, borderRadius: 10, padding: 13 }}><div><b style={{ color: C.teal }}>Package understanding complete.</b><div style={{ color: C.sub, fontSize: 11, marginTop: 3 }}>Create a QC case to pin the profile candidate, run package-foundation controls, and continue in the same analyst review workflow.</div></div><Button onClick={createCase}>Create QC case & review →</Button></section>
+        <section style={{ marginTop: 14, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap", background: C.tealSoft, border: `1px solid ${C.teal}33`, borderRadius: 10, padding: 13 }}><div><b style={{ color: C.teal }}>Package understanding complete.</b><div style={{ color: C.sub, fontSize: 11, marginTop: 3 }}>Create a QC case to pin the profile candidate, run package and document-specific controls, and continue in the same analyst review workflow.</div></div><Button onClick={createCase}>Create QC case & review →</Button></section>
 
         <section style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(4,minmax(160px,1fr))", gap: 9 }}>
           {[
@@ -213,7 +222,7 @@ export default function PackageAnalysis() {
           </aside>
         </section>
 
-        <div style={{ marginTop: 14, background: C.blueSoft, color: C.blue, borderRadius: 10, padding: 12, fontSize: 11.5 }}><b>QC scope:</b> This handoff evaluates package-foundation controls only: classification coverage, loan identity, borrower extraction, profile context, and OCR quality. Document-specific execution, signature, notary, and policy controls remain future work.</div>
+        <div style={{ marginTop: 14, background: C.blueSoft, color: C.blue, borderRadius: 10, padding: 12, fontSize: 11.5 }}><b>QC scope:</b> The QC case now includes package-foundation controls plus Note execution date, signature-location indicators, Right-to-Cancel content/date checks, notary field/date checks, and cross-document borrower/date consistency. Signature, notary execution, RTC execution, legal sufficiency, and transaction eligibility remain human-review decisions.</div>
       </>}
     </div>
   </main>;
