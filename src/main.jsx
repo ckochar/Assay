@@ -5,6 +5,7 @@ import OverviewScreen from "./OverviewScreen.jsx";
 
 const LiveAnalysis = lazy(() => import("./LiveAnalysis.jsx"));
 const PackageAnalysis = lazy(() => import("./PackageAnalysis.jsx"));
+const EvaluationScreen = lazy(() => import("./EvaluationScreen.jsx"));
 
 const shellFont = "Inter, ui-sans-serif, system-ui, sans-serif";
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
@@ -15,11 +16,16 @@ function ProductHeader({ active = "overview" }) {
     ["dashboard", "QC Dashboard"],
     ["profiles", "Rule Profiles"],
     ["governance", "AI Governance"],
+    ["evaluation", "Evaluation"],
   ];
 
   const navigate = (id) => {
     if (id === "overview") {
       window.location.assign("/");
+      return;
+    }
+    if (id === "evaluation") {
+      window.location.assign("/evaluation");
       return;
     }
     goToWorkspace(id);
@@ -87,13 +93,23 @@ function LiveEntry({ mode = "note" }) {
   </div>;
 }
 
+function EvaluationEntry() {
+  return <div style={{ minHeight: "100vh", background: "#f5f7f6" }}>
+    <ProductHeader active="evaluation" />
+    <Suspense fallback={<div style={{ padding: 40, fontFamily: shellFont }}>Loading Evaluation…</div>}><EvaluationScreen /></Suspense>
+    <footer style={{ fontFamily: mono, textAlign: "center", color: "#60706a", fontSize: 10, padding: 24 }}>Synthetic decision-layer benchmark · not an OCR accuracy claim</footer>
+  </div>;
+}
+
 function Root() {
   const params = new URLSearchParams(window.location.search);
   const isLive = window.location.pathname === "/live";
   const isPackage = window.location.pathname === "/package";
+  const isEvaluation = window.location.pathname === "/evaluation";
   const hasCase = params.has("case");
   const workspace = params.get("workspace");
 
+  if (isEvaluation) return <EvaluationEntry />;
   if (isPackage) return <LiveEntry mode="package" />;
   if (isLive) return <LiveEntry />;
   if (hasCase) return <CaseEntry />;
