@@ -1,4 +1,5 @@
 import React from "react";
+import EvaluationPipelineHealth from "./EvaluationPipelineHealth.jsx";
 import { GOLDEN_EVALUATION_CASES } from "./data/goldenEvaluationCases.js";
 import { evaluateGoldenCases } from "./domain/goldenEvaluation.js";
 import {
@@ -83,7 +84,9 @@ export default function EvaluationScreen() {
 
   return <main style={{ ...display, minHeight: "100vh", background: C.bg, color: C.ink }}>
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "28px 24px 38px" }}>
-      <section style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 13, padding: 22 }}>
+      <EvaluationPipelineHealth />
+
+      <section style={{ marginTop: 28, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 13, padding: 22 }}>
         <div style={{ ...mono, color: C.blue, fontSize: 9.5, fontWeight: 800 }}>RELIABILITY EVALUATION · DECISION LAYER</div>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 18, alignItems: "start", flexWrap: "wrap", marginTop: 6 }}>
           <div style={{ maxWidth: 760 }}>
@@ -238,13 +241,13 @@ export default function EvaluationScreen() {
           </div>
           <div style={{ background: C.reviewSoft, color: C.review, borderRadius: 10, padding: 14, fontSize: 11, lineHeight: 1.55 }}>
             <div style={{ ...mono, fontSize: 9, fontWeight: 800 }}>BOUNDARY</div>
-            <b style={{ display: "block", margin: "5px 0" }}>Still not a scan benchmark</b>
-            Rotation and compact layout are digital PDF manipulations. Handwriting, low-DPI raster scans, blur, noise, scan compression, and severe image degradation remain unmeasured. Cost was not instrumented.
+            <b style={{ display: "block", margin: "5px 0" }}>Digital stress ≠ raster reliability</b>
+            The raster experiment above supersedes the old “unmeasured” boundary: true image-only scans are now measured and currently fail upstream understanding while still routing safely. Broader scan quality and unseen layouts remain unproven.
           </div>
           <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14, fontSize: 11, lineHeight: 1.55 }}>
             <div style={{ ...mono, color: C.sub, fontSize: 9, fontWeight: 800 }}>NEXT RELIABILITY STEP</div>
-            <b style={{ display: "block", margin: "5px 0" }}>True raster / scan stress</b>
-            Add a small free-tier-safe set of rasterized low-resolution pages, controlled blur/noise/skew, and unseen layout variants before broadening any accuracy claim.
+            <b style={{ display: "block", margin: "5px 0" }}>Instrument before changing the model path</b>
+            Capture OCR coverage and provider response shape on the next minimal raster experiment, then make the smallest targeted fix supported by those diagnostics.
           </div>
         </aside>
       </section>
