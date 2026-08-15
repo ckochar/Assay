@@ -63,13 +63,19 @@ Signature/notary **legal validity is never inferred from OCR text alone**. Evide
 
 The QC workspace supports Pass / Fail / Needs Review findings, source-page evidence, PDF.js viewing, Azure evidence polygons where available, funding blockers, return-for-correction, structured overrides, optional second approval, final disposition, audit history, and pinned evaluation context.
 
+Eligible findings now also expose **in-card evidence correction**. The analyst stays in the case, sees the extracted value beside source evidence, corrects the bounded field, and reruns the deterministic control without navigating to another screen. Non-correctable findings do not show a generic edit action.
+
+A dedicated synthetic QC queue case (`QC-24075`) demonstrates the full borrower-name correction path inside the normal analyst workflow.
+
 ### Human Review: correction is not override
 
-`/human-review` demonstrates the human-in-the-loop correction pattern for three bounded field types:
+`/human-review` remains the focused demonstration of the reusable human-in-the-loop correction pattern for three bounded field types:
 
 - borrower names
 - execution date
 - document classification
+
+The same correction contract is now used by eligible QC finding cards.
 
 A correction changes an extracted value and **reruns the impacted deterministic control**. Assay preserves the original AI value, the human-entered value, evidence context, rule-status change, recommendation change, reviewer, and note in audit history.
 
@@ -79,7 +85,7 @@ The UX principle is exception-first: the reviewer should understand **what is wr
 
 ## Reliability evaluation
 
-`/evaluation` now presents reliability as an AI-system pipeline rather than one accuracy score:
+`/evaluation` presents reliability as an AI-system pipeline rather than one accuracy score:
 
 **provider → OCR/document intelligence → classification/extraction → evidence provenance → deterministic decision → human accountability**
 
@@ -118,7 +124,7 @@ This benchmark exposed a missing product control. A confidently missing configur
 
 ### True raster / scan learning
 
-Assay now also has **image-only PDF fixtures with no PDF text layer**. Two eight-page raster packages were run through the real Azure F0 → Assay path after adding a words-to-lines fallback.
+Assay has **image-only PDF fixtures with no PDF text layer**. Two eight-page raster packages were run through the real Azure F0 → Assay path after adding a words-to-lines fallback.
 
 Measured post-fix result:
 
@@ -149,7 +155,9 @@ See [`docs/EVALUATION.md`](docs/EVALUATION.md) and [`docs/FAILURE_TAXONOMY.md`](
 - `src/domain/packageQcCase.js` — deterministic package/document QC case generation
 - `src/domain/mortgageQc.js` — recommendation, blocker, override, and audit semantics
 - `src/domain/humanCorrection.js` — bounded human correction + deterministic re-evaluation
-- `src/HumanCorrectionDemo.jsx` — reviewer correction UX
+- `src/FindingCard.jsx` — reusable evidence-first finding + in-card correction UX
+- `src/data/humanReviewQcDemo.js` — synthetic QC queue correction scenario
+- `src/HumanCorrectionDemo.jsx` — focused multi-field reviewer correction UX
 - `src/PdfEvidenceViewer.jsx` — source-page evidence review
 - `src/EvaluationPipelineHealth.jsx` — layered AI-system health view
 
@@ -158,6 +166,7 @@ See [`docs/EVALUATION.md`](docs/EVALUATION.md) and [`docs/FAILURE_TAXONOMY.md`](
 - Any unresolved **Fail** creates an exception recommendation unless a valid authorized exception is recorded.
 - Funding-critical **Needs Review** blocks a ready disposition.
 - A correction updates extracted evidence and reruns the configured control; it is not an override.
+- Correction controls appear only on explicitly configured bounded fields with pinned reference/evidence semantics.
 - Overrides require an authorized actor, structured reason, and source evidence.
 - Configured critical rules may require second approval.
 - A confidently absent document becomes an exception only when the pinned fictional profile/channel explicitly configures that document as required.
@@ -171,6 +180,7 @@ Assay treats UX as part of product correctness:
 
 - **exception first** — focus the analyst on what needs action
 - **evidence beside action** — avoid forcing source hunting
+- **minimum context switching** — correct eligible extraction errors without leaving the case
 - **correction ≠ override** — different intent, language, and behavior
 - **show consequences** — expose before/after rule and recommendation changes
 - **preserve context** — keep the reviewer anchored to the finding after re-evaluation
@@ -191,8 +201,8 @@ Assay treats UX as part of product correctness:
 
 ## Current roadmap
 
-1. **Integrate the reusable correction interaction into QC finding cards** while preserving the same exception-first UX.
-2. Extend correction to bounded live fields only where evidence/reference semantics are explicit.
+1. Extend in-card correction to bounded **live** fields only where evidence/reference semantics are explicit.
+2. Add alternate-evidence selection so reviewers can point a correction to a different valid source location instead of only the pinned reference.
 3. Add lightweight pipeline observability to measured runs: pages/calls/coverage/confidence/latency/review triggers.
 4. Diagnose the raster failure with coverage telemetry before another OCR/normalization change.
 5. Evaluate a selective model/LLM experiment only where probabilistic understanding has a clear bounded advantage over heuristics; deterministic controls remain the decision layer.

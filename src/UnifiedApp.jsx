@@ -6,8 +6,11 @@ import {
   computeRecommendation,
   validateOverride,
 } from "./domain/mortgageQc.js";
+import { applyEvidenceCorrection } from "./domain/humanCorrection.js";
 import { DEMO_REVIEWS, PROFILE_REGISTRY } from "./data/mortgageDemo.js";
+import { CORRECTABLE_QC_REVIEW } from "./data/humanReviewQcDemo.js";
 import { loadLiveCaseSession, loadLivePdfSession, saveLiveCaseSession } from "./sessionLiveCase.js";
+import FindingCard from "./FindingCard.jsx";
 
 const PdfEvidenceViewer = lazy(() => import("./PdfEvidenceViewer.jsx"));
 
@@ -69,13 +72,6 @@ function AppHeader({ screen, setScreen }) {
   </header>;
 }
 
-function Confidence({ confidence = {} }) {
-  return <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-    {[["Class", confidence.classification], ["Extract", confidence.extraction], ["OCR", confidence.ocrQuality]].map(([label, value]) => value != null && <Pill key={label}>{label} {typeof value === "number" ? value.toFixed(2) : value}</Pill>)}
-    <Pill tone={confidence.evidenceComplete ? { color: C.pass, bg: C.passSoft } : { color: C.review, bg: C.reviewSoft }}>Evidence {confidence.evidenceComplete ? "complete" : "incomplete"}</Pill>
-  </div>;
-}
-
 function packageLifecycle(review) {
   if (review.workflow === "Completed" && review.disposition) return { label: review.disposition, helper: "Review completed", tone: statusStyle(review.disposition), open: false };
   if (review.workflow === "Awaiting Correction") return { label: "Awaiting Correction", helper: "Waiting for resubmission", tone: statusStyle("Awaiting Correction"), open: true };
@@ -93,9 +89,10 @@ function PackageRow({ review, openReview, compact = false }) {
   const pass = review.rules.filter((r) => r.status === "Pass").length;
   const fail = review.rules.filter((r) => r.status === "Fail" && !r.authorizedException).length;
   const needs = review.rules.filter((r) => r.status === "Needs Review" && !r.authorizedException).length;
+  const hasCorrectable = review.rules.some((rule) => Boolean(rule.correctableField && rule.correctionContext?.referenceValue && rule.status !== "Pass"));
   return <div onClick={() => openReview(review.id)} style={{ display: "grid", gridTemplateColumns: compact ? "100px minmax(220px,1.7fr) 160px 160px" : "100px minmax(220px,1.5fr) 105px 120px 185px 155px", gap: 10, alignItems: "center", padding: "13px 15px", borderBottom: `1px solid ${C.line}`, cursor: "pointer", fontSize: 12 }}>
     <span style={mono}>{review.id}</span>
-    <span><b>{review.borrower}</b>{review.source === "live" && <> <Pill tone={{ color: C.blue, bg: C.blueSoft }}>LIVE</Pill></>}<br /><span style={{ color: C.sub }}>{review.loanId} · {pages} pages · {review.documents.length} docs</span></span>
+    <span><b>{review.borrower}</b>{review.source === "live" && <> <Pill tone={{ color: C.blue, bg: C.blueSoft }}>LIVE</Pill></>}{hasCorrectable && <> <Pill tone={{ color: C.blue, bg: C.blueSoft }}>CORRECTABLE</Pill></>}<br /><span style={{ color: C.sub }}>{review.loanId} · {pages} pages · {review.documents.length} docs</span></span>
     {!compact && <span>{channelLabel[review.channel] || review.channel}</span>}
     {!compact && <span style={mono}>{review.jurisdiction} v{review.profile.version}</span>}
     <span><Pill tone={lifecycle.tone}>{lifecycle.tone.icon} {lifecycle.label}</Pill><br /><span style={{ color: C.sub, fontSize: 10 }}>{lifecycle.helper}</span></span>
@@ -109,7 +106,7 @@ function HowAssayWorks() {
     ["2", "Understand", "OCR and AI classify documents, extract fields, and preserve source evidence."],
     ["3", "Apply Rules", "Assay selects the applicable rule profile and evaluates QC controls."],
     ["4", "Review", "Analysts inspect exceptions or uncertain evidence directly against the source."],
-    ["5", "Dispose", "Confirm, override, return for correction, or record an authorized exception."],
+    ["5", "Dispose", "Correct evidence, override when authorized, return the package, or confirm disposition."],
   ];
   return <section style={{ marginTop: 22, background: C.muted, border: `1px solid ${C.line}`, borderRadius: 12, padding: 14 }}>
     <div style={{ marginBottom: 10 }}><div style={{ ...mono, color: C.sub, fontSize: 9 }}>QUICK ORIENTATION</div><h2 style={{ margin: "3px 0 0", fontSize: 15 }}>How Assay works</h2><div style={{ color: C.sub, fontSize: 10.5, marginTop: 3 }}>A lightweight overview for first-time users.</div></div>
@@ -145,7 +142,7 @@ function documentFindingState(active, docName) {
   const rules = active.rules.filter((rule) => rule.evidence?.sourceDocument === docName);
   const unresolvedFail = rules.filter((rule) => rule.status === "Fail" && !rule.authorizedException).length;
   const unresolvedReview = rules.filter((rule) => rule.status === "Needs Review" && !rule.authorizedException).length;
-  const resolved = rules.filter((rule) => rule.overridden || rule.authorizedException).length;
+  const resolved = rules.filter((rule) => rule.overridden || rule.authorizedException || rule.correctedByHuman).length;
   if (unresolvedFail) return { label: `${unresolvedFail} issue${unresolvedFail > 1 ? "s" : ""}`, tone: { color: C.fail, bg: C.failSoft } };
   if (unresolvedReview) return { label: `${unresolvedReview} needs review`, tone: { color: C.review, bg: C.reviewSoft } };
   if (resolved) return { label: "Resolved", tone: { color: C.purple, bg: C.purpleSoft } };
@@ -156,7 +153,7 @@ function ReviewActions({ active, recommendation, readyCheck, onReady, onReturn, 
   if (active.workflow === "Completed" || active.workflow === "Awaiting Correction") return null;
   const firstBlocker = active.rules.find((r) => (r.status === "Fail" || r.status === "Needs Review") && !r.authorizedException);
   return <div style={{ display: "flex", justifyContent: compact ? "flex-start" : "flex-end", gap: 8, flexWrap: "wrap" }}>
-    {firstBlocker && <Button variant="review" onClick={() => onOpenFinding(firstBlocker)}>Review finding</Button>}
+    {firstBlocker && !firstBlocker.correctableField && <Button variant="review" onClick={() => onOpenFinding(firstBlocker)}>Review finding</Button>}
     {firstBlocker && <Button variant="correction" onClick={onReturn}>Return for correction</Button>}
     <Button disabled={recommendation !== RECOMMENDATION.READY || !readyCheck.allowed} onClick={onReady}>Confirm Ready for Funding</Button>
   </div>;
@@ -176,7 +173,7 @@ function LiveSourcePanel({ active, selectedRule }) {
   return <Suspense fallback={<div style={{ padding: 14, color: C.sub, fontSize: 11 }}>Loading source PDF…</div>}><PdfEvidenceViewer file={file} evidence={selectedRule?.evidence} /></Suspense>;
 }
 
-function ReviewScreen({ active, filter, setFilter, onBack, onOpenFinding, onReady, onReturn }) {
+function ReviewScreen({ active, filter, setFilter, onBack, onOpenFinding, onApplyCorrection, onReady, onReturn }) {
   const recommendation = computeRecommendation(active.rules);
   const readyCheck = canRecordReadyDisposition(active.rules);
   const tone = statusStyle(recommendation);
@@ -196,10 +193,10 @@ function ReviewScreen({ active, filter, setFilter, onBack, onOpenFinding, onRead
   return <main style={{ padding: 20, maxWidth: 1400, margin: "0 auto" }}>
     <button type="button" onClick={onBack} style={{ ...mono, background: "none", border: 0, color: C.sub, cursor: "pointer" }}>← QC Dashboard</button>
     <div style={{ display: "flex", justifyContent: "space-between", gap: 18, alignItems: "start", flexWrap: "wrap", margin: "12px 0" }}>
-      <div><div style={{ display: "flex", gap: 8, alignItems: "center" }}><h1 style={{ margin: 0, fontSize: 22 }}>{active.borrower}</h1>{active.source === "live" && <Pill tone={{ color: C.blue, bg: C.blueSoft }}>LIVE CASE</Pill>}</div><div style={{ color: C.sub, fontSize: 12, marginTop: 5 }}>{active.loanId} · {channelLabel[active.channel] || active.channel} · {active.jurisdiction} · {active.documents.length} documents · {totalPages} pages · {active.profile.id} v{active.profile.version}</div></div>
+      <div><div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><h1 style={{ margin: 0, fontSize: 22 }}>{active.borrower}</h1>{active.source === "live" && <Pill tone={{ color: C.blue, bg: C.blueSoft }}>LIVE CASE</Pill>}{active.scenario === "Borrower extraction correction" && <Pill tone={{ color: C.blue, bg: C.blueSoft }}>HITL SAMPLE</Pill>}</div><div style={{ color: C.sub, fontSize: 12, marginTop: 5 }}>{active.loanId} · {channelLabel[active.channel] || active.channel} · {active.jurisdiction} · {active.documents.length} documents · {totalPages} pages · {active.profile.id} v{active.profile.version}</div></div>
       <div style={{ display: "grid", gap: 9, justifyItems: "end" }}><div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}><div><div style={{ ...mono, color: C.sub, fontSize: 9 }}>SYSTEM RECOMMENDATION</div><Pill tone={tone}>{tone.icon} {recommendation}</Pill></div><div><div style={{ ...mono, color: C.sub, fontSize: 9 }}>WORKFLOW</div><Pill tone={statusStyle(active.workflow)}>{active.workflow}</Pill></div><div><div style={{ ...mono, color: C.sub, fontSize: 9 }}>FINAL DISPOSITION</div><Pill tone={active.disposition ? statusStyle(active.disposition) : undefined}>{active.disposition || "Not recorded"}</Pill></div></div><ReviewActions active={active} recommendation={recommendation} readyCheck={readyCheck} onReady={onReady} onReturn={onReturn} onOpenFinding={onOpenFinding} /></div>
     </div>
-    <div style={{ background: isCompleted ? C.passSoft : isAwaitingCorrection ? C.reviewSoft : tone.bg, color: isCompleted ? C.pass : isAwaitingCorrection ? C.review : tone.color, borderRadius: 9, padding: 11, fontSize: 12, marginBottom: 14 }}><b>{banner}</b>{blockers.length > 0 && !isCompleted && !isAwaitingCorrection && <div style={{ marginTop: 4 }}>Funding confirmation is blocked by {blockers.map((item) => item.id).join(", ")}. Choose <b>Review finding</b> to verify or override the evidence, or <b>Return for correction</b> if the source package must be fixed.</div>}{active.source === "live" && <div style={{ marginTop: 4 }}>This live case uses the Live Note Baseline profile. Jurisdiction-specific mortgage rule resolution is not yet connected in the live pipeline.</div>}</div>
+    <div style={{ background: isCompleted ? C.passSoft : isAwaitingCorrection ? C.reviewSoft : tone.bg, color: isCompleted ? C.pass : isAwaitingCorrection ? C.review : tone.color, borderRadius: 9, padding: 11, fontSize: 12, marginBottom: 14 }}><b>{banner}</b>{blockers.length > 0 && !isCompleted && !isAwaitingCorrection && <div style={{ marginTop: 4 }}>Funding confirmation is blocked by {blockers.map((item) => item.id).join(", ")}. Correct an eligible extraction directly in its finding, use <b>Override / exception</b> only when the evidence is accepted despite the system result, or return the source package when it must be fixed.</div>}{active.source === "live" && <div style={{ marginTop: 4 }}>This live case uses the Live Note Baseline profile. Jurisdiction-specific mortgage rule resolution is not yet connected in the live pipeline.</div>}</div>
 
     <section style={{ display: "grid", gridTemplateColumns: active.source === "live" ? "minmax(390px,1.05fr) minmax(520px,1.35fr)" : "minmax(260px,.8fr) minmax(500px,1.7fr)", gap: 14, alignItems: "start" }}>
       <aside style={{ display: "grid", gap: 12, alignContent: "start" }}>
@@ -209,7 +206,7 @@ function ReviewScreen({ active, filter, setFilter, onBack, onOpenFinding, onRead
       </aside>
       <div>
         <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>{["All", "Fail", "Needs Review", "Pass"].map((item) => <button key={item} type="button" onClick={() => setFilter(item)} style={{ ...mono, border: `1px solid ${filter === item ? C.teal : C.line}`, background: filter === item ? C.tealSoft : C.panel, color: filter === item ? C.teal : C.sub, borderRadius: 6, padding: "6px 9px", cursor: "pointer", fontSize: 10 }}>{item}</button>)}</div>
-        <div style={{ display: "grid", gap: 9 }}>{shown.map((rule) => { const ruleTone = statusStyle(rule.status); const selected = rule.id === selectedRuleId; return <article key={rule.id} style={{ background: C.panel, border: `1px solid ${selected ? ruleTone.color : `${ruleTone.color}44`}`, borderLeft: `4px solid ${ruleTone.color}`, borderRadius: 10, padding: 14 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}><div><Pill>{rule.id}</Pill> <b style={{ fontSize: 13 }}>{rule.name}</b> <span style={{ ...mono, fontSize: 9, color: rule.fundingCritical ? C.fail : C.sub }}>{rule.fundingCritical ? "FUNDING CRITICAL" : (rule.severity || "Major").toUpperCase()}</span></div><Pill tone={ruleTone}>{ruleTone.icon} {rule.status}</Pill></div><p style={{ color: C.sub, fontSize: 11.5, margin: "9px 0" }}>{rule.requirement}</p><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}><div style={{ background: C.bg, borderRadius: 8, padding: 10, fontSize: 11 }}><span style={{ color: C.sub }}>Extracted result</span><br /><b>{rule.extractedValue}</b></div><div style={{ background: C.bg, borderRadius: 8, padding: 10, fontSize: 11 }}><span style={{ color: C.sub }}>Source evidence</span><br /><b>{rule.evidence.sourceDocument} · page {rule.evidence.page}</b><br /><span>{rule.evidence.excerpt}</span></div></div><div style={{ marginTop: 9, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}><Confidence confidence={rule.confidence} /><div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>{active.source === "live" && <Button variant="secondary" onClick={() => setSelectedRuleId(rule.id)}>{selected ? "Evidence selected" : "View source evidence"}</Button>}{rule.status !== "Pass" && !active.disposition && !isAwaitingCorrection && <Button variant="review" onClick={() => onOpenFinding(rule)}>Review finding</Button>}</div></div>{rule.overridden && <div style={{ marginTop: 9, fontSize: 11, color: C.purple, background: C.purpleSoft, padding: 8, borderRadius: 7 }}>Original system result: {rule.originalStatus}. Human action: {rule.overrideReason}{rule.authorizedException ? " · authorized policy exception" : ""}{rule.overrideNote ? ` · ${rule.overrideNote}` : ""}.</div>}</article>; })}</div>
+        <div style={{ display: "grid", gap: 9 }}>{shown.map((rule) => <FindingCard key={rule.id} rule={rule} selected={rule.id === selectedRuleId} isLive={active.source === "live"} disabled={Boolean(active.disposition) || isAwaitingCorrection} onSelectEvidence={() => setSelectedRuleId(rule.id)} onOpenFinding={onOpenFinding} onApplyCorrection={onApplyCorrection} />)}</div>
         <div style={{ marginTop: 14 }}><ReviewActions compact active={active} recommendation={recommendation} readyCheck={readyCheck} onReady={onReady} onReturn={onReturn} onOpenFinding={onOpenFinding} /></div>
         <div style={{ marginTop: 18, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14 }}><b>Audit history</b>{active.audit.map((event, index) => <div key={`${event.at}-${index}`} style={{ display: "grid", gridTemplateColumns: "60px 105px 1fr", gap: 9, padding: "9px 0", borderBottom: `1px solid ${C.line}`, fontSize: 11 }}><span style={mono}>{event.at}</span><b>{event.actor}</b><span>{event.action} · <span style={{ color: C.sub }}>{event.detail}</span></span></div>)}</div>
       </div>
@@ -224,8 +221,9 @@ function ProfilesScreen() {
 function GovernanceScreen({ reviews }) {
   const allRules = reviews.flatMap((review) => review.rules);
   const overrides = allRules.filter((rule) => rule.overridden).length;
+  const corrections = allRules.filter((rule) => rule.correctedByHuman).length;
   const lowConfidence = allRules.filter((rule) => rule.confidence?.reviewTrigger).length;
-  return <main style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}><h1>AI Governance</h1><p style={{ color: C.sub, maxWidth: 780, fontSize: 13 }}>Confidence routes work; it does not determine the final business disposition. Current prototype thresholds route to human review when classification is below {ROUTING_THRESHOLDS.classification.toFixed(2)}, extraction is below {ROUTING_THRESHOLDS.extraction.toFixed(2)}, OCR quality is low, or required evidence is incomplete.</p><section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10, margin: "18px 0" }}>{[["Rule evaluations", allRules.length], ["Human overrides", overrides], ["Confidence routes", lowConfidence], ["False-ready release gate", "0"], ["Class threshold", ROUTING_THRESHOLDS.classification.toFixed(2)], ["Extract threshold", ROUTING_THRESHOLDS.extraction.toFixed(2)]].map(([k,v]) => <div key={k} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14 }}><div style={{ ...mono, color: C.sub, fontSize: 10 }}>{k.toUpperCase()}</div><div style={{ fontSize: 22, fontWeight: 800, marginTop: 5 }}>{v}</div></div>)}</section></main>;
+  return <main style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}><h1>AI Governance</h1><p style={{ color: C.sub, maxWidth: 780, fontSize: 13 }}>Confidence routes work; it does not determine the final business disposition. Human corrections change evidence and rerun controls; overrides remain a separate accountable action.</p><section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10, margin: "18px 0" }}>{[["Rule evaluations", allRules.length], ["Human corrections", corrections], ["Human overrides", overrides], ["Confidence routes", lowConfidence], ["False-ready release gate", "0"], ["Class threshold", ROUTING_THRESHOLDS.classification.toFixed(2)], ["Extract threshold", ROUTING_THRESHOLDS.extraction.toFixed(2)]].map(([k,v]) => <div key={k} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14 }}><div style={{ ...mono, color: C.sub, fontSize: 10 }}>{k.toUpperCase()}</div><div style={{ fontSize: 22, fontWeight: 800, marginTop: 5 }}>{v}</div></div>)}</section></main>;
 }
 
 function OverrideModal({ modal, override, setOverride, onApply, onClose }) {
@@ -233,12 +231,13 @@ function OverrideModal({ modal, override, setOverride, onApply, onClose }) {
   const rule = modal.rule;
   const requiresApproval = rule.severity === "Critical" && override.authorizedException;
   const valid = Boolean(override.reason) && (!requiresApproval || override.secondApproval);
-  return <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#12211d88", display: "grid", placeItems: "center", zIndex: 20 }}><div onClick={(event) => event.stopPropagation()} style={{ width: "min(520px,92vw)", background: C.panel, borderRadius: 12, padding: 20 }}><h2 style={{ marginTop: 0 }}>Review {rule.id}</h2><p style={{ color: C.sub, fontSize: 12 }}>System result: <b>{rule.status}</b>. Source evidence is pinned to {rule.evidence.sourceDocument}, page {rule.evidence.page}.</p><label style={{ display: "grid", gap: 5, fontSize: 12, marginBottom: 10 }}>Reason<select value={override.reason} onChange={(event) => setOverride((current) => ({ ...current, reason: event.target.value }))} style={{ padding: 9, border: `1px solid ${C.line}`, borderRadius: 7 }}><option value="">Select…</option><option>Extraction error</option><option>Evidence found elsewhere</option><option>Wrong document classification</option><option>Acceptable variation</option><option>Policy exception</option></select></label><label style={{ display: "grid", gap: 5, fontSize: 12, marginBottom: 10 }}>Analyst note<textarea rows={4} value={override.note} onChange={(event) => setOverride((current) => ({ ...current, note: event.target.value }))} placeholder="Describe what you verified in the source document…" style={{ padding: 9, border: `1px solid ${C.line}`, borderRadius: 7, resize: "vertical" }} /></label><label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, marginBottom: 10 }}><input type="checkbox" checked={override.authorizedException} onChange={(event) => setOverride((current) => ({ ...current, authorizedException: event.target.checked }))} />Record as formally authorized policy exception</label>{requiresApproval && <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, color: C.fail, marginBottom: 12 }}><input type="checkbox" checked={override.secondApproval} onChange={(event) => setOverride((current) => ({ ...current, secondApproval: event.target.checked }))} />QC manager second approval</label>}<div style={{ display: "flex", gap: 8 }}><Button disabled={!valid} onClick={onApply}>Record evidence-backed action</Button><Button variant="secondary" onClick={onClose}>Cancel</Button></div></div></div>;
+  return <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#12211d88", display: "grid", placeItems: "center", zIndex: 20 }}><div onClick={(event) => event.stopPropagation()} style={{ width: "min(520px,92vw)", background: C.panel, borderRadius: 12, padding: 20 }}><h2 style={{ marginTop: 0 }}>{rule.correctableField ? "Override / exception" : "Review"} {rule.id}</h2><p style={{ color: C.sub, fontSize: 12 }}>System result: <b>{rule.status}</b>. Source evidence is pinned to {rule.evidence.sourceDocument}, page {rule.evidence.page}.{rule.correctableField ? " If the AI extraction itself is wrong, use Correct extracted value in the finding card instead." : ""}</p><label style={{ display: "grid", gap: 5, fontSize: 12, marginBottom: 10 }}>Reason<select value={override.reason} onChange={(event) => setOverride((current) => ({ ...current, reason: event.target.value }))} style={{ padding: 9, border: `1px solid ${C.line}`, borderRadius: 7 }}><option value="">Select…</option><option>Evidence found elsewhere</option><option>Acceptable variation</option><option>Policy exception</option><option>Other evidence-backed resolution</option></select></label><label style={{ display: "grid", gap: 5, fontSize: 12, marginBottom: 10 }}>Analyst note<textarea rows={4} value={override.note} onChange={(event) => setOverride((current) => ({ ...current, note: event.target.value }))} placeholder="Describe what you verified in the source document…" style={{ padding: 9, border: `1px solid ${C.line}`, borderRadius: 7, resize: "vertical" }} /></label><label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, marginBottom: 10 }}><input type="checkbox" checked={override.authorizedException} onChange={(event) => setOverride((current) => ({ ...current, authorizedException: event.target.checked }))} />Record as formally authorized policy exception</label>{requiresApproval && <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, color: C.fail, marginBottom: 12 }}><input type="checkbox" checked={override.secondApproval} onChange={(event) => setOverride((current) => ({ ...current, secondApproval: event.target.checked }))} />QC manager second approval</label>}<div style={{ display: "flex", gap: 8 }}><Button disabled={!valid} onClick={onApply}>Record evidence-backed action</Button><Button variant="secondary" onClick={onClose}>Cancel</Button></div></div></div>;
 }
 
 function initialReviews() {
+  const samples = [CORRECTABLE_QC_REVIEW, ...DEMO_REVIEWS.filter((review) => review.id !== CORRECTABLE_QC_REVIEW.id)];
   const live = loadLiveCaseSession();
-  return live ? [live, ...DEMO_REVIEWS.filter((review) => review.id !== live.id)] : DEMO_REVIEWS;
+  return live ? [live, ...samples.filter((review) => review.id !== live.id)] : samples;
 }
 
 export default function UnifiedApp() {
@@ -267,6 +266,19 @@ export default function UnifiedApp() {
   }));
   const openFinding = (rule) => { setModal({ type: "override", rule }); setOverride({ reason: "", note: "", authorizedException: false, secondApproval: false }); };
 
+  const applyCorrection = (ruleId, correctedValue, note) => {
+    const { review: next, result } = applyEvidenceCorrection(active, {
+      ruleId,
+      correctedValue,
+      actor: "Analyst",
+      note,
+      at: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    });
+    setReviews((items) => items.map((review) => review.id === active.id ? next : review));
+    persistIfLive(next);
+    return result;
+  };
+
   const applyOverride = () => {
     const rule = modal.rule;
     const validation = validateOverride({ actor: { id: "analyst", permissions: ["rule:override"] }, rule: { ...rule, requiresSecondApproval: rule.severity === "Critical" && override.authorizedException }, reason: override.reason, evidence: rule.evidence, secondApproval: override.secondApproval ? { approvedBy: "qc-manager" } : null });
@@ -288,5 +300,5 @@ export default function UnifiedApp() {
     updateActive((review) => { review.workflow = "Awaiting Correction"; review.disposition = null; review.audit.push({ at: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), actor: "Analyst", action: "Package returned for correction", detail: `Correction requested for ${findings.map((rule) => rule.id).join(", ")} · awaiting resubmission` }); return review; });
   };
 
-  return <div style={{ minHeight: "100vh", background: C.bg, color: C.ink, ...display }}><AppHeader screen={screen} setScreen={(next) => { setScreen(next); if (next !== "review") window.history.replaceState({}, "", "/"); }} />{screen === "dashboard" && <Dashboard reviews={reviews} openReview={openReview} />}{screen === "review" && <ReviewScreen key={active.id} active={active} filter={filter} setFilter={setFilter} onBack={backToDashboard} onOpenFinding={openFinding} onReady={recordDisposition} onReturn={returnForCorrection} />}{screen === "profiles" && <ProfilesScreen />}{screen === "governance" && <GovernanceScreen reviews={reviews} />}<OverrideModal modal={modal} override={override} setOverride={setOverride} onApply={applyOverride} onClose={() => setModal(null)} /><footer style={{ ...mono, textAlign: "center", color: C.sub, fontSize: 10, padding: 24 }}>Assay · sample-data portfolio prototype · not legal or compliance advice</footer></div>;
+  return <div style={{ minHeight: "100vh", background: C.bg, color: C.ink, ...display }}><AppHeader screen={screen} setScreen={(next) => { setScreen(next); if (next !== "review") window.history.replaceState({}, "", "/"); }} />{screen === "dashboard" && <Dashboard reviews={reviews} openReview={openReview} />}{screen === "review" && <ReviewScreen key={active.id} active={active} filter={filter} setFilter={setFilter} onBack={backToDashboard} onOpenFinding={openFinding} onApplyCorrection={applyCorrection} onReady={recordDisposition} onReturn={returnForCorrection} />}{screen === "profiles" && <ProfilesScreen />}{screen === "governance" && <GovernanceScreen reviews={reviews} />}<OverrideModal modal={modal} override={override} setOverride={setOverride} onApply={applyOverride} onClose={() => setModal(null)} /><footer style={{ ...mono, textAlign: "center", color: C.sub, fontSize: 10, padding: 24 }}>Assay · sample-data portfolio prototype · not legal or compliance advice</footer></div>;
 }
