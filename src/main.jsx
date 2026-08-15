@@ -6,6 +6,7 @@ import OverviewScreen from "./OverviewScreen.jsx";
 const LiveAnalysis = lazy(() => import("./LiveAnalysis.jsx"));
 const PackageAnalysis = lazy(() => import("./PackageAnalysis.jsx"));
 const EvaluationScreen = lazy(() => import("./EvaluationScreen.jsx"));
+const HumanCorrectionDemo = lazy(() => import("./HumanCorrectionDemo.jsx"));
 
 const shellFont = "Inter, ui-sans-serif, system-ui, sans-serif";
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
@@ -14,6 +15,7 @@ function ProductHeader({ active = "overview" }) {
   const items = [
     ["overview", "Overview"],
     ["dashboard", "QC Dashboard"],
+    ["human-review", "Human Review"],
     ["profiles", "Rule Profiles"],
     ["governance", "AI Governance"],
     ["evaluation", "Evaluation"],
@@ -26,6 +28,10 @@ function ProductHeader({ active = "overview" }) {
     }
     if (id === "evaluation") {
       window.location.assign("/evaluation");
+      return;
+    }
+    if (id === "human-review") {
+      window.location.assign("/human-review");
       return;
     }
     goToWorkspace(id);
@@ -97,7 +103,15 @@ function EvaluationEntry() {
   return <div style={{ minHeight: "100vh", background: "#f5f7f6" }}>
     <ProductHeader active="evaluation" />
     <Suspense fallback={<div style={{ padding: 40, fontFamily: shellFont }}>Loading Evaluation…</div>}><EvaluationScreen /></Suspense>
-    <footer style={{ fontFamily: mono, textAlign: "center", color: "#60706a", fontSize: 10, padding: 24 }}>Synthetic decision-layer benchmark · not an OCR accuracy claim</footer>
+    <footer style={{ fontFamily: mono, textAlign: "center", color: "#60706a", fontSize: 10, padding: 24 }}>Layered AI-system evaluation · synthetic portfolio benchmarks</footer>
+  </div>;
+}
+
+function HumanReviewEntry() {
+  return <div style={{ minHeight: "100vh", background: "#f5f7f6" }}>
+    <ProductHeader active="human-review" />
+    <Suspense fallback={<div style={{ padding: 40, fontFamily: shellFont }}>Loading Human Review…</div>}><HumanCorrectionDemo /></Suspense>
+    <footer style={{ fontFamily: mono, textAlign: "center", color: "#60706a", fontSize: 10, padding: 24 }}>Human correction reruns deterministic controls · correction is not an override</footer>
   </div>;
 }
 
@@ -106,10 +120,12 @@ function Root() {
   const isLive = window.location.pathname === "/live";
   const isPackage = window.location.pathname === "/package";
   const isEvaluation = window.location.pathname === "/evaluation";
+  const isHumanReview = window.location.pathname === "/human-review";
   const hasCase = params.has("case");
   const workspace = params.get("workspace");
 
   if (isEvaluation) return <EvaluationEntry />;
+  if (isHumanReview) return <HumanReviewEntry />;
   if (isPackage) return <LiveEntry mode="package" />;
   if (isLive) return <LiveEntry />;
   if (hasCase) return <CaseEntry />;
@@ -117,6 +133,10 @@ function Root() {
 
   const navigate = (screen) => {
     if (screen === "overview") return;
+    if (screen === "human-review") {
+      window.location.assign("/human-review");
+      return;
+    }
     goToWorkspace(screen);
   };
 
