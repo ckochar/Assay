@@ -2,52 +2,56 @@
 
 ## Product goal
 
-Assay is a working portfolio demonstration of an **AI-assisted post-execution mortgage document QC product**. It shows the operating loop from a synthetic executed PDF through document understanding, deterministic QC, evidence-backed human review, and measured reliability.
+Assay is a working portfolio demonstration of an **AI-assisted post-execution mortgage document QC product**. It shows the operating loop from a synthetic executed PDF through document understanding, deterministic QC, evidence-backed human review, human correction, and measured reliability.
 
 **Production:** https://assay-navy.vercel.app  
 **Package Intelligence:** https://assay-navy.vercel.app/package  
+**Human Review:** https://assay-navy.vercel.app/human-review  
 **Evaluation:** https://assay-navy.vercel.app/evaluation
 
 Assay is intentionally narrow. It is not an LOS, eClosing platform, notarization platform, legal rules engine, or production mortgage system.
 
-## Portfolio cost constraint
+## Non-negotiable constraints
 
-The portfolio is designed to stay within **free service tiers**. The current Azure document-intelligence path remains on F0 and Vercel remains on the free/Hobby plan. Reliability work should stop/defer when a free allowance or platform limit is reached rather than depend on a paid upgrade.
+- Portfolio operation stays within **free service tiers / $0 spend**.
+- Azure Document Intelligence remains F0.
+- Vercel remains Hobby/free with the permanent four-function footprint.
+- Synthetic/sample data only.
+- Human corrections, overrides, and policy exceptions must remain distinguishable in both UX and audit semantics.
+- UX is part of product correctness: evidence should be available beside the action, uncertainty should remain explicit, and common reviewer actions should minimize context switching.
 
 ## Current production baseline
 
-Delivered today:
+Delivered:
 
 - live Azure AI Document Intelligence integration
 - combined-PDF analysis for the first 8 pages / 4 MB
-- provider-aware Azure page batching and page-number recombination
-- page classification and document segmentation
-- package inventory and context extraction
+- provider-aware Azure page batching and original-page recombination
+- page classification, document segmentation, package inventory, and context extraction
 - evidence-linked loan, borrower, jurisdiction, date, RTC, and notary signals
-- deterministic package and document-specific QC controls
-- fictional profile-configured required-document inventory for the QC-only sample flow
-- PDF.js source review and Azure page geometry
-- reviewer actions, blockers, overrides, disposition, and audit history
-- pinned extractor and fictional sample rule-profile context
-- 10-case decision-layer golden set
-- 5-package / 40-page initial PDF-Azure baseline
-- 3-package / 24-page controlled digital stress baseline
-- zero-false-ready safety gate across the published evaluation slices
-- **50 automated tests** in the current publication branch
+- deterministic package/document controls and profile-driven required-document inventory
+- PDF.js source review + Azure page geometry where available
+- reviewer blockers, return-for-correction, overrides, optional approval, final disposition, and audit history
+- bounded human correction + deterministic re-evaluation for borrower names
+- Human Review surface expanded around one reusable correction pattern for borrower name, execution date, and document classification
+- pinned extractor/profile context
+- decision, clean-digital-PDF, digital-stress, and true-raster reliability work
+- formal AI failure taxonomy and document-intelligence diagnostics
+- zero-false-ready safety objective across published/recorded evaluation outcomes
 
 ## Primary users
 
 ### QC analyst
-Reviews exceptions and uncertainty, inspects source pages, records corrections/overrides, returns packages for correction, and records the final disposition.
+Needs to quickly answer: what is wrong, where is the source evidence, what can I safely correct, what requires an override/return, and what changed after my action?
 
 ### QC manager
-Would manage queues, SLAs, defect trends, workload, and override patterns. Durable multi-user operations are not yet implemented.
+Would manage queues, SLAs, defect trends, workload, and override/correction patterns. Durable multi-user operations remain outside the current portfolio scope.
 
 ### Policy administrator
-Would author, test, approve, version, publish, and retire rule profiles. The prototype demonstrates versioned profile concepts but not a production authoring workflow.
+Would author/test/version/publish profiles. The prototype demonstrates versioned profile concepts, not a production authoring workflow.
 
 ### Governance / audit user
-Examines extractor/model context, rule/profile versions, evidence, human actions, exceptions, and measured reliability.
+Examines provider/model context, rule/profile versions, evidence provenance, human actions, exceptions, corrections, and measured reliability.
 
 ---
 
@@ -59,307 +63,251 @@ Examines extractor/model context, rule/profile versions, evidence, human actions
 
 Delivered:
 
-- post-execution QC boundary and product language
+- post-execution QC boundary
 - Fail / Needs Review funding-blocking semantics
-- authorized exceptions without erasing original findings
-- override permission, reason, evidence, and optional second approval
+- authorized exception behavior without erasing original findings
+- structured override permission/reason/evidence/optional second approval
 - pinned evaluation/profile/extractor context
-- deterministic recommendation and safety domain functions
+- deterministic recommendation/safety domain functions
 - safety-critical regression tests
-
-Production-depth work remaining:
-
-- durable policy/profile registry
-- enterprise permissions / approvals
-- production legal/control content
 
 ## Sprint 1 — Live PDF path
 
-**Status: Completed for the current 8-page portfolio scope**
+**Status: Completed for current 8-page portfolio scope**
 
 Delivered:
 
-- synthetic/sample PDF upload
-- decoded-size and `%PDF` validation
-- Azure `prebuilt-layout` integration
-- asynchronous Vercel start/poll APIs
-- combined package analysis for the first 8 pages
-- provider-aware PDF batching for Azure F0 request limits
-- configurable sequential provider throttling
-- opaque Assay batch analysis IDs
-- recombination of provider chunks with original package page numbers
-- page-level document classification and consecutive segmentation
-- package inventory
-- loan number, borrower, jurisdiction, OCR-quality, and evidence normalization
-- candidate fictional profile resolution for TX / CA / FL
+- sample PDF upload + decoded-size/%PDF validation
+- Azure `prebuilt-layout`
+- start/poll APIs
+- provider-aware F0 batching/throttling/recombination
+- page-level classification/segmentation
+- package inventory and context extraction
+- candidate fictional TX/CA/FL profile resolution
 
-Remaining production work:
+Remaining production-depth work:
 
-- encrypted/corrupt PDF handling beyond basic validation
-- production object storage / processing records
-- distributed throttling and resilient provider retry/backoff
-- custom or schema-based mortgage document classification/extraction
-- larger package support
+- resilient provider retry/backoff
+- production storage/processing records
+- trained/schema-based mortgage classification/extraction
+- larger package scope
 
-## Sprint 2 — Evidence and review
+## Sprint 2 — Evidence + human workflow
 
-**Status: Major prototype scope completed**
+**Status: Major prototype scope completed; correction integration in progress**
 
 Delivered:
 
-- PDF.js reviewer
-- page navigation and Azure evidence polygons
-- source-document/page/excerpt provenance
-- unified live and sample review experience
+- PDF.js reviewer + source-page evidence
 - package-to-QC-case handoff
-- Note execution date and signature-location signals
-- Closing Disclosure date extraction and cross-document date comparison
-- Right-to-Cancel content/date signals and chronology control
-- notary field/date signals and chronology control
-- cross-document borrower comparison
-- return-for-correction, override, disposition, and audit history
-- provenance correction that prevents missing evidence from inheriting a manufactured page number
-- profile-driven `PKG-DOC-REQ-001` inventory control for fictional QC-only sample profiles
-- fail-safe required-document routing: confident absence → Fail; classification uncertainty → Needs Review; unresolved profile → no invented requirement
+- document-specific date/signature/RTC/notary/cross-document controls
+- return-for-correction, override, authorized exception, disposition, audit history
+- profile-driven `PKG-DOC-REQ-001`
+- fail-safe inventory routing
+- evidence provenance fixes
+- bounded correction domain that preserves the original AI value and reruns deterministic controls
+- Human Review UX for three explicit correction types: borrower names, execution date, document classification
+- correction history with before/after value, rule status, and package recommendation
 
-Remaining production work:
+Current P1 work:
 
-- field/classification correction connected to re-evaluation
+- embed the reusable correction interaction directly into eligible QC finding cards
+- keep correction controls hidden for findings that are not safely correctable
+- preserve reviewer context after rerun
+- maintain clear visual/action distinction between correction and override
+
+Later production-depth work:
+
 - alternate-evidence selection
 - corrected-document resubmission comparison
 - durable audit/event persistence
-- configurable required-document policies for additional intake channels only when backed by explicit sample profile data
+- field-specific correction permissions
 
-## Sprint 3 — Evaluation and governance
+## Sprint 3 — Evaluation + governance
 
-**Status: Decision baseline + clean PDF baseline + digital stress v1 completed**
+**Status: Layered evaluation baseline completed; raster diagnosis remains open**
 
-### Decision-layer benchmark
+### Decision layer
 
-Delivered:
+- 10/10 recommendation matches
+- 0 false ready
+- 0 false exceptions
+- 0 missed deterministic exceptions
 
-- 10 labeled structured-evidence cases
-- Ready / Needs Review / Exception coverage
-- metrics computed from the production case builder and recommendation engine
-- visible `/evaluation` screen
-- **10/10** recommendation matches
-- **0** false ready
-- **0** false exceptions
-- **0** missed deterministic exceptions
-- build-gated zero-false-ready release test
+### Initial clean PDF / Azure baseline
 
-### Initial PDF / Azure benchmark
+Five generated digital eight-page packages / 40 pages:
 
-Delivered:
+- 40/40 classifications
+- 50/50 labeled fields
+- 44/44 evidence source pages with evidence present
+- 5/5 recommendation matches
+- 0 false ready
+- P50 12.36 s / P95 12.71 s
 
-- five reproducible, version-controlled synthetic digital eight-page PDFs
-- 40 total pages through the live Azure → Assay pipeline
-- page-classification scoring
-- labeled field-extraction scoring
-- evidence source-page and completeness scoring
-- final recommendation safety scoring
-- measured latency capture
-- static baseline data committed to the repo
+### Digital stress v1
 
-Measured initial baseline:
+Three eight-page cases / 24 pages:
 
-- **40/40** page classifications
-- **50/50** labeled field values
-- **44/44** evidence source pages with evidence present
-- **5/5** recommendation matches
-- **0** false ready
-- **0** false exceptions
-- **0** missed deterministic exceptions
-- **P50 12.36 s**
-- **P95 12.71 s**
+- 24/24 classifications
+- 30/30 fields
+- 25/25 evidence locations
+- 3/3 recommendations
+- 0 false ready
+- P50 12.36 s / P95 12.52 s
 
-Important boundary: these are clean generated digital-text PDFs. The result is an initial pipeline baseline, **not** a claim of 100% production accuracy or generalization.
+The duplicated/missing-document scenario exposed a missing profile-driven inventory control and directly led to `PKG-DOC-REQ-001` plus regression coverage.
 
-### Digital PDF stress set v1
+### True raster / image-only stress
 
 Delivered:
 
-- three reproducible eight-page stress fixtures
-- mixed 90°/270° PDF rotation metadata
-- compact, lighter two-column digital typography
-- duplicated Closing Disclosure / missing configured Notary package structure
-- static measured stress baseline committed to the repo
-- visible stress section on `/evaluation`
+- image-only PDFs with no text layer
+- low-resolution raster scenario
+- skew/blur/compression scenario
+- post-fallback live Azure F0 reruns
 
-Final measured stress baseline:
+Measured learning:
 
-- **24/24** page classifications
-- **30/30** labeled field values
-- **25/25** evidence source pages with evidence present
-- **3/3** recommendation matches
-- **0** false ready
-- **0** false exceptions
-- **0** missed deterministic exceptions
-- **P50 12.36 s**
-- **P95 12.52 s**
+- both eight-page raster packages produced 0/8 usable classifications and 0/10 labeled fields downstream
+- evidence recovery also collapsed
+- provider average word confidence remained approximately 0.860 / 0.933
+- both packages still routed safely to `Needs Review`
+- 0 false ready
 
-### Product learning from stress v1
-
-The structural stress case correctly removed the Notary document upstream, but the first diagnostic run exposed that Assay did not yet have a profile-driven missing-document inventory rule. The benchmark therefore caused a product change rather than simply producing another score.
+Product conclusion: **confidence is not coverage**. The next raster run must capture raw provider/OCR coverage and output-shape diagnostics before another algorithm change.
 
 Delivered response:
 
-- added `PKG-DOC-REQ-001`
-- made required-document expectations profile/channel data rather than global mortgage assumptions
-- versioned the fictional sample profiles forward: TX 2.2.0, CA 1.5.0, FL 3.1.0
-- added regression coverage for confident absence, classification uncertainty, and unresolved profile behavior
-- re-ran the structural case and obtained the expected `Exception Identified`
+- formal failure taxonomy
+- word/line/text/page OCR diagnostics
+- coverage ratios and confidence distribution support
+- `/evaluation` redesigned around provider → OCR → understanding → evidence → decision → human accountability
 
-The initial pre-fix structural run is retained conceptually as a diagnostic learning, not counted as the final published benchmark row.
+Next reliability step:
 
-See [`EVALUATION.md`](EVALUATION.md) for methodology and limitations.
+1. instrument a tiny free-tier-safe raster run
+2. inspect words/page, lines/page, text characters/page, pages with usable OCR, provider output shape
+3. identify whether the limiting factor is rendering quality, OCR coverage, response normalization, or downstream heuristics
+4. only then implement a targeted fix
 
-### Next evaluation step — true raster / scan stress
+## Sprint 4 — UX + portfolio communication
 
-The next reliability set should move beyond digital-PDF manipulation. Prioritize a **small free-tier-safe** set covering:
-
-- rasterized low-resolution pages
-- controlled image blur/noise
-- image-level skew and rotation
-- scan compression / poor raster contrast
-- varied/unseen layouts
-- ambiguous names/dates
-- missing/duplicated pages under classification uncertainty
-- evidence excerpt/region quality beyond source-page correctness
-
-Repeated Azure runs should be used only when they answer a specific reliability question. Cost telemetry should only be added if it can be done without introducing billable usage.
-
-## Sprint 4 — Recruiter presentation
-
-**Status: Strong baseline; polish remains**
+**Status: Active**
 
 Delivered:
 
-- public production deployment
-- recruiter-oriented Overview
-- sample workspace
-- live Package Intelligence
-- visible decision + PDF + digital-stress Evaluation
-- architecture and limitations in product and README
-- benchmark-driven product-change story (`PKG-DOC-REQ-001`)
+- public deployment
+- Overview
+- QC Dashboard
+- Rule Profiles
+- AI Governance
+- layered Evaluation
+- Human Review correction surface
+- failure learning shown rather than hidden
+- README/roadmap kept aligned with product behavior
+
+UX principles used as release criteria:
+
+- exception-first workflow
+- evidence beside action
+- minimum context switching
+- clear correction vs override intent
+- before/after consequence visibility
+- progressive disclosure of technical detail
+- safe defaults
+- consistent terminology/action hierarchy
 
 Remaining:
 
-- optional guided walkthrough
-- screenshots / short product GIF in README
-- structured accessibility review
-- mobile/responsive polish
-- browser-level end-to-end test
-- shell/navigation cleanup
+- embed correction inside eligible finding cards
+- browser-level end-to-end interaction test
+- accessibility review
+- responsive/mobile polish
+- navigation/shell simplification where it reduces user confusion
+- optional short recruiter walkthrough/GIF after workflow stabilizes
 
 ---
 
-# Current technical design
-
-```text
-React / Vite client
-  -> Vercel package-analyze API
-  -> PDF validation
-  -> provider-aware PDF page batching
-  -> Azure AI Document Intelligence OCR/layout
-  -> provider-result recombination + page rebasing
-  -> package normalization + document segmentation
-  -> document-specific evidence extraction
-  -> deterministic package QC case builder
-       -> versioned profile context
-       -> profile-configured required-document inventory
-  -> PDF.js evidence-backed reviewer
-  -> human action / disposition / audit context
-```
-
-## Decision architecture
+# Decision architecture
 
 Assay intentionally separates:
 
-1. **Document intelligence** — OCR/layout, classification/extraction signals, page geometry.
-2. **Normalization + deterministic controls** — transparent QC findings and recommendations.
-3. **Human workflow** — inspect evidence, resolve uncertainty, return, override where authorized, and record disposition.
+1. **Document intelligence** — OCR/layout/classification/extraction/page geometry.
+2. **Normalization + deterministic controls** — transparent findings, blockers, recommendations.
+3. **Human correction** — change extracted evidence and rerun the impacted control.
+4. **Human override / policy exception** — separately authorized decision action when permitted.
+5. **Final disposition** — accountable human confirmation.
 
-A generic model confidence score is never used as the final business decision.
-
-## Rule/profile direction
-
-The prototype uses deterministic evaluators and fictional versioned sample profiles. The production direction remains reusable evaluator templates in code, policy/profile parameters as versioned data, immutable historical evaluation context, and impact simulation before profile publication.
-
-The current required-document inventory is intentionally configured only for the fictional **QC-only** sample flow. It must not be interpreted as a universal mortgage/legal requirement or silently extended to RON/mobile-notary channels.
+A generic model confidence score is never the final business decision.
 
 ---
 
-# Evaluation release gate
+# Current priorities
 
-The primary safety gate remains:
+## P0 — Reliability transparency
 
-> **Zero false-ready packages in the labeled evaluation set.**
+- keep `/evaluation` layered by pipeline stage
+- preserve the raster failure as a visible learning case
+- instrument before patching again
+- maintain zero-false-ready as the primary safety gate
 
-A false exception increases manual work. A false-ready outcome can create materially greater operational, customer, or compliance risk.
+## P1 — Human-AI collaboration
 
-The decision, controlled-PDF, and digital-stress published slices all pass this gate, but the document-intelligence sets remain too small and synthetic to support a production generalization claim.
+- reusable finding-review interaction
+- eligible in-card corrections for borrower/date/document type
+- original AI value preserved
+- deterministic rerun after correction
+- rule + recommendation delta visible immediately
+- audit trail records evidence/action/outcome
 
----
+## P1 — Lightweight observability
 
-# Roadmap after digital stress v1
+Capture without paid monitoring infrastructure:
 
-## Reliability / document intelligence
+- pages analyzed
+- provider request/chunk count
+- latency
+- words/lines/text coverage
+- OCR confidence distribution
+- classification/extraction confidence
+- evidence completeness
+- human-review trigger
+- controls evaluated
+- final recommendation
 
-- true raster/scanned-PDF stress set
-- layout diversity
-- schema-based extraction
-- precision/recall by document type and field
-- evidence-region/excerpt-quality evaluation where labels are stable
-- provider retry/backoff telemetry
-- repeated-run latency only when useful
-- free-safe cost instrumentation if feasible
+## P2 — Selective model experiment
 
-## Free-tier infrastructure hygiene
+Only after the current pipeline is observable, compare a bounded probabilistic approach against the heuristic baseline where it adds genuine value. Candidate experiment: classification/structured extraction assistance. Deterministic controls remain the final decision layer.
 
-- keep Azure Document Intelligence on F0
-- keep Vercel on the free/Hobby plan
-- avoid adding serverless entrypoints that exceed the free project function limit
-- consider moving shared server helpers out of `api/` if needed to create free function-count headroom
-- stop/defer benchmark work before any paid upgrade is required
+## Defer
 
-## Operational depth
-
-- durable cases and audit storage
-- assignment / SLA
-- correction and resubmission comparison
-- batch intake / API output
-- role-based permissions
-- second-level approvals
-
-## Policy operations
-
-- rule-profile draft / test / approve / publish / retire
-- version comparison
-- impact simulation
-- rollback strategy
+- database / durable enterprise workflow
+- full RBAC/tenancy
+- large policy authoring platform
+- nationwide legal/regulatory rules
+- generic chatbot/copilot
+- LLM deciding whether a loan/package passes
 
 ---
 
-# Explicit non-goals for the portfolio version
+# Release gates
 
-- building an OCR foundation model
-- reproducing an entire LOS, eClosing, or notarization suite
-- using real borrower/customer data
-- encoding real legal interpretations of state law
-- claiming regulatory compliance
-- implementing full enterprise identity, tenancy, retention, or vendor management
-- requiring a paid cloud tier for the portfolio demo
+- **0 false-ready packages** in labeled evaluation cases
+- no correction action may silently behave like an override
+- no user-facing capability should require a paid tier for the portfolio
+- no new serverless endpoints should violate the permanent free-tier function footprint
+- documentation must be updated with material product behavior changes
+- UX review is required for new analyst-facing actions: clear intent, evidence visibility, consequence visibility, and safe default behavior
 
 ## Recruiter demo sequence
 
-1. Explain the downstream post-execution QC problem on Overview.
-2. Show sample QC cases and the reviewer model.
-3. Open Package Intelligence and run a synthetic package.
-4. Show package segmentation, extracted context, and profile resolution.
-5. Open a finding against source PDF evidence.
-6. Explain human-review boundaries for signature/notary execution.
-7. Show deterministic chronology/consistency controls.
-8. Open Evaluation and compare decision-layer, clean PDF, and digital-stress metrics.
-9. Show how STRESS-003 exposed the missing-document rule gap and led to a versioned profile/rule change.
-10. Close with the zero-false-ready gate, synthetic-data boundaries, and next raster-scan stress step.
+1. Overview: downstream QC problem and product thesis.
+2. QC Dashboard: exception-first work queue.
+3. Open a finding and inspect source evidence.
+4. Human Review: correct an AI extraction and show deterministic re-evaluation + audit delta.
+5. Explain correction vs override/authorized exception.
+6. Package Intelligence: synthetic live package path.
+7. Evaluation: clean baseline, digital stress, and raster failure learning.
+8. Explain how benchmark failures changed the product (`PKG-DOC-REQ-001`, failure taxonomy, observability direction).
+9. Close with zero-false-ready objective, synthetic-data boundaries, and next diagnostic step.
