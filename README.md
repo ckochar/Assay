@@ -63,7 +63,7 @@ Signature/notary **legal validity is never inferred from OCR text alone**. Evide
 
 The QC workspace supports Pass / Fail / Needs Review findings, source-page evidence, PDF.js viewing, Azure evidence polygons where available, funding blockers, return-for-correction, structured overrides, optional second approval, final disposition, audit history, and pinned evaluation context.
 
-Eligible findings now also expose **in-card evidence correction**. The analyst stays in the case, sees the extracted value beside source evidence, corrects the bounded field, and reruns the deterministic control without navigating to another screen. Non-correctable findings do not show a generic edit action.
+Eligible findings also expose **in-card evidence correction**. The analyst stays in the case, sees the extracted value beside source evidence, corrects the bounded field, and reruns the deterministic control without navigating to another screen. Non-correctable findings do not show a generic edit action.
 
 A dedicated synthetic QC queue case (`QC-24075`) demonstrates the full borrower-name correction path inside the normal analyst workflow.
 
@@ -75,7 +75,7 @@ A dedicated synthetic QC queue case (`QC-24075`) demonstrates the full borrower-
 - execution date
 - document classification
 
-The same correction contract is now used by eligible QC finding cards.
+The same correction contract is used by eligible QC finding cards.
 
 A correction changes an extracted value and **reruns the impacted deterministic control**. Assay preserves the original AI value, the human-entered value, evidence context, rule-status change, recommendation change, reviewer, and note in audit history.
 
@@ -88,6 +88,25 @@ The UX principle is exception-first: the reviewer should understand **what is wr
 `/evaluation` presents reliability as an AI-system pipeline rather than one accuracy score:
 
 **provider → OCR/document intelligence → classification/extraction → evidence provenance → deterministic decision → human accountability**
+
+### Operational AI telemetry
+
+`/evaluation` also includes a lightweight operational telemetry layer derived from previously measured **controlled synthetic benchmark runs**. It summarizes the operating shape of the prototype rather than pretending to be a production monitoring system.
+
+Current telemetry surfaces:
+
+- packages/pages observed
+- provider-call footprint
+- human-review rate
+- straight-through rate
+- deterministic exception rate
+- P50/P95 latency
+- evidence completeness
+- false-ready count
+- top human-review triggers
+- explicit observability gaps
+
+The telemetry model preserves `null` for metrics that were not captured in the original run. In particular, **OCR page coverage was not instrumented in the measured raster reruns**, so Assay shows that gap rather than estimating a value. This keeps the next raster step evidence-driven: capture coverage first, then diagnose, then patch only if justified.
 
 ### Decision-layer golden set
 
@@ -136,7 +155,7 @@ Measured post-fix result:
 
 This produced an important product learning: **confidence is not coverage**. A provider can be confident in the subset of words it recognized while still recognizing too little of the page for downstream understanding. Assay therefore added an explicit failure taxonomy and document-intelligence diagnostics for word/line/text coverage, page-level OCR presence, confidence distribution, and provider output shape.
 
-The next raster step is **diagnose before patching again**: instrument coverage/provider response shape on a tightly bounded run, identify the actual upstream failure mode, then change the algorithm only if the evidence supports it.
+The next raster step is **diagnose before patching again**: capture coverage/provider response shape on a tightly bounded run, identify the actual upstream failure mode, then change the algorithm only if the evidence supports it.
 
 See [`docs/EVALUATION.md`](docs/EVALUATION.md) and [`docs/FAILURE_TAXONOMY.md`](docs/FAILURE_TAXONOMY.md).
 
@@ -155,9 +174,12 @@ See [`docs/EVALUATION.md`](docs/EVALUATION.md) and [`docs/FAILURE_TAXONOMY.md`](
 - `src/domain/packageQcCase.js` — deterministic package/document QC case generation
 - `src/domain/mortgageQc.js` — recommendation, blocker, override, and audit semantics
 - `src/domain/humanCorrection.js` — bounded human correction + deterministic re-evaluation
+- `src/domain/aiTelemetry.js` — lightweight operating-metric aggregation
+- `src/data/operationalTelemetry.js` — evidence-backed controlled benchmark telemetry
 - `src/FindingCard.jsx` — reusable evidence-first finding + in-card correction UX
 - `src/data/humanReviewQcDemo.js` — synthetic QC queue correction scenario
 - `src/HumanCorrectionDemo.jsx` — focused multi-field reviewer correction UX
+- `src/OperationalAiTelemetry.jsx` — operational AI telemetry + instrumentation gaps
 - `src/PdfEvidenceViewer.jsx` — source-page evidence review
 - `src/EvaluationPipelineHealth.jsx` — layered AI-system health view
 
@@ -173,6 +195,7 @@ See [`docs/EVALUATION.md`](docs/EVALUATION.md) and [`docs/FAILURE_TAXONOMY.md`](
 - Unknown/low-confidence inventory routes to `Needs Review` instead of inventing certainty.
 - Signature/notary indicators assist evidence location; they do not constitute legal validation.
 - Provider/model confidence is never treated as business-decision confidence.
+- Missing telemetry remains explicitly missing; it is not imputed into reliability claims.
 
 ## UX principles
 
@@ -197,14 +220,16 @@ Assay treats UX as part of product correctness:
 - no production identity, tenancy, durable audit store, or enterprise retention model
 - small synthetic benchmark sets
 - true raster performance currently demonstrates a known upstream failure mode, not production readiness
-- cost telemetry is not instrumented
+- operational telemetry currently summarizes controlled benchmark runs; it is not a durable production telemetry pipeline
+- OCR page coverage remains uninstrumented in the measured raster runs
+- monetary cost telemetry is not instrumented
 
 ## Current roadmap
 
-1. Extend in-card correction to bounded **live** fields only where evidence/reference semantics are explicit.
-2. Add alternate-evidence selection so reviewers can point a correction to a different valid source location instead of only the pinned reference.
-3. Add lightweight pipeline observability to measured runs: pages/calls/coverage/confidence/latency/review triggers.
-4. Diagnose the raster failure with coverage telemetry before another OCR/normalization change.
+1. Connect lightweight telemetry fields directly to future measured analysis runs while preserving `null` for unavailable signals.
+2. Run one tightly bounded, free-tier-safe raster diagnostic that captures page coverage/provider response shape before another OCR change.
+3. Extend in-card correction to bounded **live** fields only where evidence/reference semantics are explicit.
+4. Add alternate-evidence selection so reviewers can point a correction to a different valid source location instead of only the pinned reference.
 5. Evaluate a selective model/LLM experiment only where probabilistic understanding has a clear bounded advantage over heuristics; deterministic controls remain the decision layer.
 6. Continue recruiter-facing polish only after product behavior is coherent and measured.
 
