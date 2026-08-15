@@ -32,8 +32,10 @@ Delivered:
 - deterministic package/document controls and profile-driven required-document inventory
 - PDF.js source review + Azure page geometry where available
 - reviewer blockers, return-for-correction, overrides, optional approval, final disposition, and audit history
-- bounded human correction + deterministic re-evaluation for borrower names
-- Human Review surface expanded around one reusable correction pattern for borrower name, execution date, and document classification
+- reusable bounded correction domain for borrower names, execution dates, and document classification
+- focused `/human-review` correction experience
+- **in-card correction inside eligible QC findings** with evidence, original AI value, corrected value, deterministic rerun, and audit preservation
+- synthetic QC queue scenario `QC-24075` for borrower-extraction correction
 - pinned extractor/profile context
 - decision, clean-digital-PDF, digital-stress, and true-raster reliability work
 - formal AI failure taxonomy and document-intelligence diagnostics
@@ -94,7 +96,7 @@ Remaining production-depth work:
 
 ## Sprint 2 — Evidence + human workflow
 
-**Status: Major prototype scope completed; correction integration in progress**
+**Status: Major prototype scope completed; correction integrated into QC workflow**
 
 Delivered:
 
@@ -107,17 +109,17 @@ Delivered:
 - evidence provenance fixes
 - bounded correction domain that preserves the original AI value and reruns deterministic controls
 - Human Review UX for three explicit correction types: borrower names, execution date, document classification
-- correction history with before/after value, rule status, and package recommendation
+- reusable `FindingCard` with evidence-first correction UX
+- correction controls shown only for explicitly correctable findings
+- in-card correction without leaving the active QC case
+- clear `Correct extracted value` vs `Override / exception` action distinction
+- before/after rule and package recommendation feedback
+- correction history with original AI value, human value, reviewer note, evidence context, rule status, and package recommendation
+- queue-level synthetic correction case with regression coverage
 
-Current P1 work:
+Next human-workflow depth:
 
-- embed the reusable correction interaction directly into eligible QC finding cards
-- keep correction controls hidden for findings that are not safely correctable
-- preserve reviewer context after rerun
-- maintain clear visual/action distinction between correction and override
-
-Later production-depth work:
-
+- extend correction to bounded live fields only when the live pipeline provides explicit reference/evidence semantics
 - alternate-evidence selection
 - corrected-document resubmission comparison
 - durable audit/event persistence
@@ -204,6 +206,8 @@ Delivered:
 - AI Governance
 - layered Evaluation
 - Human Review correction surface
+- in-card evidence correction in the normal QC workflow
+- correctable queue labeling so the analyst can recognize a bounded human-review case
 - failure learning shown rather than hidden
 - README/roadmap kept aligned with product behavior
 
@@ -220,11 +224,11 @@ UX principles used as release criteria:
 
 Remaining:
 
-- embed correction inside eligible finding cards
 - browser-level end-to-end interaction test
 - accessibility review
 - responsive/mobile polish
 - navigation/shell simplification where it reduces user confusion
+- alternate-evidence UX
 - optional short recruiter walkthrough/GIF after workflow stabilizes
 
 ---
@@ -254,12 +258,20 @@ A generic model confidence score is never the final business decision.
 
 ## P1 — Human-AI collaboration
 
+Delivered baseline:
+
 - reusable finding-review interaction
-- eligible in-card corrections for borrower/date/document type
+- eligible in-card corrections
 - original AI value preserved
 - deterministic rerun after correction
 - rule + recommendation delta visible immediately
 - audit trail records evidence/action/outcome
+
+Next:
+
+- connect bounded correction to real live package fields where reference/evidence semantics are explicit
+- allow reviewer-selected alternate evidence without weakening provenance
+- measure correction/review rate in evaluation datasets
 
 ## P1 — Lightweight observability
 
@@ -295,6 +307,7 @@ Only after the current pipeline is observable, compare a bounded probabilistic a
 
 - **0 false-ready packages** in labeled evaluation cases
 - no correction action may silently behave like an override
+- correction controls must appear only when field/evidence/reference semantics are explicitly configured
 - no user-facing capability should require a paid tier for the portfolio
 - no new serverless endpoints should violate the permanent free-tier function footprint
 - documentation must be updated with material product behavior changes
@@ -303,10 +316,10 @@ Only after the current pipeline is observable, compare a bounded probabilistic a
 ## Recruiter demo sequence
 
 1. Overview: downstream QC problem and product thesis.
-2. QC Dashboard: exception-first work queue.
-3. Open a finding and inspect source evidence.
-4. Human Review: correct an AI extraction and show deterministic re-evaluation + audit delta.
-5. Explain correction vs override/authorized exception.
+2. QC Dashboard: exception-first work queue; open `QC-24075` to show a correctable extraction.
+3. Correct the AI-extracted borrower value **inside the finding card** and show deterministic re-evaluation + audit delta.
+4. Explain why correction differs from override/authorized exception.
+5. Use `/human-review` to show the same bounded pattern across borrower, date, and document classification.
 6. Package Intelligence: synthetic live package path.
 7. Evaluation: clean baseline, digital stress, and raster failure learning.
 8. Explain how benchmark failures changed the product (`PKG-DOC-REQ-001`, failure taxonomy, observability direction).
