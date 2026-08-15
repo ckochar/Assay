@@ -1,5 +1,6 @@
 import React from "react";
 import { FAILURE_TAXONOMY, RASTER_LEARNING_V1 } from "./data/failureTaxonomy.js";
+import OperationalAiTelemetry from "./OperationalAiTelemetry.jsx";
 
 const C = {
   panel: "#ffffff", ink: "#14211d", sub: "#60706a", line: "#dfe6e2",
@@ -9,54 +10,12 @@ const C = {
 const mono = { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" };
 
 const PIPELINE = [
-  {
-    key: "input",
-    label: "1 · Input / provider",
-    question: "Did the provider process the package?",
-    measure: "Page count, provider status, throttling, latency",
-    status: "Measured",
-    tone: "blue",
-  },
-  {
-    key: "ocr",
-    label: "2 · Document intelligence",
-    question: "Did OCR recognize enough usable content?",
-    measure: "Words, lines, text-bearing pages, coverage, confidence",
-    status: "Needs deeper raster diagnostics",
-    tone: "review",
-  },
-  {
-    key: "understand",
-    label: "3 · Classification / extraction",
-    question: "Did Assay understand the package correctly?",
-    measure: "Document classification and labeled field accuracy",
-    status: "Measured by benchmark layer",
-    tone: "blue",
-  },
-  {
-    key: "evidence",
-    label: "4 · Evidence provenance",
-    question: "Can each material claim be traced to source evidence?",
-    measure: "Source page, excerpt, geometry, evidence completeness",
-    status: "Measured",
-    tone: "teal",
-  },
-  {
-    key: "decision",
-    label: "5 · Deterministic decision",
-    question: "Did controls produce the expected routing?",
-    measure: "Rule result, blocker, recommendation, false-ready rate",
-    status: "Safety gate active",
-    tone: "teal",
-  },
-  {
-    key: "human",
-    label: "6 · Human accountability",
-    question: "Was uncertainty left with a reviewer instead of hidden?",
-    measure: "Needs Review, overrides, final disposition, audit context",
-    status: "Prototype workflow live",
-    tone: "teal",
-  },
+  { key: "input", label: "1 · Input / provider", question: "Did the provider process the package?", measure: "Page count, provider status, throttling, latency", status: "Measured", tone: "blue" },
+  { key: "ocr", label: "2 · Document intelligence", question: "Did OCR recognize enough usable content?", measure: "Words, lines, text-bearing pages, coverage, confidence", status: "Coverage instrumentation pending", tone: "review" },
+  { key: "understand", label: "3 · Classification / extraction", question: "Did Assay understand the package correctly?", measure: "Document classification and labeled field accuracy", status: "Measured by benchmark layer", tone: "blue" },
+  { key: "evidence", label: "4 · Evidence provenance", question: "Can each material claim be traced to source evidence?", measure: "Source page, excerpt, geometry, evidence completeness", status: "Measured", tone: "teal" },
+  { key: "decision", label: "5 · Deterministic decision", question: "Did controls produce the expected routing?", measure: "Rule result, blocker, recommendation, false-ready rate", status: "Safety gate active", tone: "teal" },
+  { key: "human", label: "6 · Human accountability", question: "Was uncertainty left with a reviewer instead of hidden?", measure: "Needs Review, corrections, overrides, final disposition, audit context", status: "Prototype workflow live", tone: "teal" },
 ];
 
 function tone(name) {
@@ -83,9 +42,7 @@ export default function EvaluationPipelineHealth() {
       <div style={{ display: "flex", justifyContent: "space-between", gap: 18, alignItems: "start", flexWrap: "wrap", marginTop: 6 }}>
         <div style={{ maxWidth: 790 }}>
           <h1 style={{ margin: 0, fontSize: 28 }}>Where did the AI system succeed, fail, and route safely?</h1>
-          <p style={{ color: C.sub, fontSize: 12.5, lineHeight: 1.65, margin: "8px 0 0" }}>
-            Assay evaluates reliability as a pipeline, not one model score. Provider health, OCR coverage, classification, extraction, evidence, deterministic controls, and human review are measured separately so a failure at one layer cannot silently become confidence at the next.
-          </p>
+          <p style={{ color: C.sub, fontSize: 12.5, lineHeight: 1.65, margin: "8px 0 0" }}>Assay evaluates reliability as a pipeline, not one model score. Provider health, OCR coverage, classification, extraction, evidence, deterministic controls, and human review are measured separately so a failure at one layer cannot silently become confidence at the next.</p>
         </div>
         <div style={{ background: C.tealSoft, color: C.teal, borderRadius: 10, padding: "11px 13px", minWidth: 220 }}>
           <div style={{ ...mono, fontSize: 9, fontWeight: 800 }}>PRIMARY SAFETY OBJECTIVE</div>
@@ -104,13 +61,13 @@ export default function EvaluationPipelineHealth() {
       </div>)}
     </section>
 
+    <OperationalAiTelemetry />
+
     <section style={{ marginTop: 14, display: "grid", gridTemplateColumns: "minmax(0,1.35fr) minmax(280px,.65fr)", gap: 14, alignItems: "stretch" }}>
       <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 11, padding: 17 }}>
         <div style={{ ...mono, color: C.fail, fontSize: 9, fontWeight: 800 }}>OPEN LEARNING · TRUE RASTER PATH</div>
         <h2 style={{ fontSize: 20, margin: "7px 0 0" }}>Acceptable OCR confidence did not mean usable document understanding.</h2>
-        <p style={{ color: C.sub, fontSize: 11.5, lineHeight: 1.6, margin: "8px 0 0" }}>
-          Two image-only eight-page packages were rerun after the word-to-line fallback. The fallback did not recover classification, extraction, or evidence. Both packages still routed to Needs Review, so the downstream safety behavior held. The next raster experiment must instrument OCR coverage and provider output shape before another algorithm change.
-        </p>
+        <p style={{ color: C.sub, fontSize: 11.5, lineHeight: 1.6, margin: "8px 0 0" }}>Two image-only eight-page packages were rerun after the word-to-line fallback. The fallback did not recover classification, extraction, or evidence. Both packages still routed to Needs Review, so the downstream safety behavior held. The next raster experiment must instrument OCR coverage and provider output shape before another algorithm change.</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 8, marginTop: 13 }}>
           <Stat value={`${raster.classificationCorrect}/${raster.classificationTotal}`} label="Page classifications" danger />
           <Stat value={`${raster.extractionCorrect}/${raster.extractionTotal}`} label="Labeled fields" danger />
@@ -123,9 +80,7 @@ export default function EvaluationPipelineHealth() {
       <aside style={{ background: C.reviewSoft, color: C.review, borderRadius: 11, padding: 17 }}>
         <div style={{ ...mono, fontSize: 9, fontWeight: 800 }}>WHY THIS MATTERS</div>
         <b style={{ display: "block", fontSize: 15, marginTop: 7 }}>Confidence is not coverage.</b>
-        <p style={{ fontSize: 11, lineHeight: 1.6, margin: "7px 0 0" }}>
-          Average word confidence only describes words Azure returned. It does not prove that Azure recognized enough of the page. Assay now treats OCR coverage, evidence completeness, and routing safety as separate signals.
-        </p>
+        <p style={{ fontSize: 11, lineHeight: 1.6, margin: "7px 0 0" }}>Average word confidence only describes words Azure returned. It does not prove that Azure recognized enough of the page. Assay now treats OCR coverage, evidence completeness, and routing safety as separate signals.</p>
         <div style={{ borderTop: "1px solid rgba(147,98,10,.2)", marginTop: 12, paddingTop: 12 }}>
           <div style={{ ...mono, fontSize: 8.7, fontWeight: 800 }}>NEXT DIAGNOSTIC</div>
           <div style={{ fontSize: 10.8, lineHeight: 1.55, marginTop: 5 }}>Capture words/page, lines/page, text characters, pages with OCR, confidence distribution, and provider response shape on the next raster run.</div>
