@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildDocumentIntelligenceDiagnostics,
   classifyDocumentIntelligenceHealth,
   summarizeDocumentIntelligenceHealth,
 } from "../server/lib/documentIntelligenceDiagnostics.js";
@@ -50,4 +51,22 @@ test("diagnostics classify no OCR text separately from empty package", () => {
 
   const noPages = summarizeDocumentIntelligenceHealth({ analyzeResult: { pages: [] } });
   assert.equal(classifyDocumentIntelligenceHealth(noPages), "NO_PAGES");
+});
+
+test("reusable diagnostics payload preserves page rows and health classification", () => {
+  const diagnostics = buildDocumentIntelligenceDiagnostics({
+    analyzeResult: {
+      pages: [
+        { pageNumber: 1, words: [word("PROMISSORY", 0.91)], lines: [] },
+        { pageNumber: 2, words: [], lines: [] },
+      ],
+    },
+  });
+
+  assert.equal(diagnostics.health, "PARTIAL_PAGE_COVERAGE");
+  assert.equal(diagnostics.pageCount, 2);
+  assert.equal(diagnostics.pageRows.length, 2);
+  assert.equal(diagnostics.pageRows[0].words, 1);
+  assert.equal(diagnostics.pageRows[1].words, 0);
+  assert.equal(diagnostics.averageWordConfidence, 0.91);
 });

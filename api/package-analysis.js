@@ -2,6 +2,7 @@ import { isAzureConfigured } from "../server/lib/azureDocumentIntelligence.js";
 import { getPdfBatchAnalysis } from "../server/lib/pdfBatchAnalysis.js";
 import { normalizeMortgagePackageAnalysis } from "../server/lib/normalizeMortgagePackage.js";
 import { extractDocumentSpecificQc } from "../server/lib/documentSpecificQc.js";
+import { buildDocumentIntelligenceDiagnostics } from "../server/lib/documentIntelligenceDiagnostics.js";
 
 function send(response, status, payload) {
   response.status(status).json(payload);
@@ -24,6 +25,9 @@ export default async function handler(request, response) {
 
     const result = normalizeMortgagePackageAnalysis(raw);
     result.documentQc = extractDocumentSpecificQc({ rawResult: raw, packageResult: result });
+    result.observability = {
+      provider: buildDocumentIntelligenceDiagnostics(raw),
+    };
 
     return send(response, 200, {
       status: "succeeded",
