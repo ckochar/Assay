@@ -52,3 +52,11 @@ export function classifyDocumentIntelligenceHealth(summary = {}) {
   if (summary.pagesWithLines === 0 && summary.pagesWithWords > 0) return "WORDS_WITHOUT_LINES";
   return "TEXT_AVAILABLE";
 }
+
+export function buildDocumentIntelligenceDiagnostics(rawResult = {}) {
+  const summary = summarizeDocumentIntelligenceHealth(rawResult);
+  return {
+    health: classifyDocumentIntelligenceHealth(summary),
+    ...summary,
+  };
+}
